@@ -1,0 +1,79 @@
+.drawer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 13, 18, 0.92);
+  border-top: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 800;
+  transition: transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transform: translateY(0);
+  max-height: 70vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer.collapsed {
+  /* Translate down by everything except the handle row so we get a tappable
+   * peek strip at the bottom of the viewport. */
+  transform: translateY(calc(100% - 56px));
+}
+
+.drawer.compact {
+  /* Tighter limit on phones so the drawer doesn't dominate when open. */
+  max-height: 60vh;
+}
+
+.handleRow {
+  /* This used to be a div but is now a real <button> so it gets keyboard
+   * focus, screen-reader role, and the system focus ring out of the box. */
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  /* Generous touch target — drawer handle is the primary control on mobile. */
+  padding: 12px 16px 8px;
+  min-height: 48px;
+  cursor: pointer;
+  user-select: none;
+  font: inherit;
+}
+
+.handleRow:hover .handle,
+.handleRow:focus-visible .handle {
+  background: var(--accent);
+}
+
+.handle {
+  width: 56px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--fg-faint);
+  transition: background 120ms ease;
+}
+
+.handleHint {
+  font-size: 11px;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.body {
+  padding: 4px 20px 20px;
+  overflow: auto;
+}
+
+.compact .body {
+  padding: 4px 14px 16px;
+}

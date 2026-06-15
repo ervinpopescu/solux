@@ -1,0 +1,17 @@
+.card {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  padding: 16px;
+  background: rgba(11, 13, 18, 0.82);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 800;
+}

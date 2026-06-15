@@ -1,0 +1,29 @@
+/*
+ * The MarkerPopup wrapper itself doesn't position anything — Leaflet's
+ * own .leaflet-popup styles handle the bubble. We just need to nudge
+ * the inner content to a comfortable padding and dark theme.
+ */
+.popup {
+  color: var(--fg);
+  padding: 4px 4px 2px;
+  min-width: 240px;
+}
+
+/* These selectors leak into Leaflet's popup chrome to give it the same
+ * dark glass treatment as the other display modes. */
+:global(.leaflet-popup-content-wrapper) {
+  background: rgba(11, 13, 18, 0.92) !important;
+  color: var(--fg) !important;
+  border-radius: var(--radius) !important;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+:global(.leaflet-popup-tip) {
+  background: rgba(11, 13, 18, 0.92) !important;
+  border: 1px solid var(--border);
+}
+
+:global(.leaflet-popup-close-button) {
+  color: var(--fg-muted) !important;
+}
