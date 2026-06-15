@@ -1,0 +1,106 @@
+:root {
+  --bg: #0b0d12;
+  --bg-soft: #141822;
+  --fg: #f3f1ea;
+  --fg-muted: #a7a99f;
+  --fg-faint: #6b6e64;
+  --accent: #f5a623;
+  --accent-soft: #f5a62333;
+  --blue: #5fa8e0;
+  --border: #2a2f3b;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  --radius: 12px;
+  --gap: 12px;
+
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+button:hover { background: rgba(255, 255, 255, 0.04); }
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input[type='date'], select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 8px;
+  color-scheme: dark;
+  /* iOS Safari zooms when an input's font is < 16 px; keep tap-zoom off. */
+  font-size: 14px;
+}
+
+/* On phones, the system zoom-on-focus behaviour for inputs <16px is
+ * annoying because it changes the layout. Bump to 16px there. */
+@media (max-width: 640px) {
+  input[type='date'], select {
+    font-size: 16px;
+    min-height: 40px;
+  }
+}
+
+/* Leaflet attribution control: keep readable on dark theme */
+.leaflet-container {
+  background: #1a1f2c;
+  /* Crosshair tells the user the map is clickable. Grab cursor still
+   * appears when actually dragging, courtesy of Leaflet's drag handler. */
+  cursor: crosshair;
+}
+.leaflet-dragging .leaflet-container {
+  cursor: grabbing;
+}
+.leaflet-control-attribution {
+  background: rgba(11, 13, 18, 0.7) !important;
+  color: var(--fg-muted) !important;
+}
+.leaflet-control-attribution a { color: var(--accent) !important; }
+
+/* Leaflet's zoom buttons get a touch-friendly size on mobile, and they're
+ * pushed below the floating Solux controls bar so they're never hidden
+ * behind it. The controls bar on mobile sits at top: 8px with ~50 px of
+ * content, so 64 px clears it. */
+@media (max-width: 640px) {
+  .leaflet-touch .leaflet-bar a {
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 20px !important;
+  }
+  .leaflet-top {
+    /* The controls bar may wrap to two rows on very narrow phones
+     * (≤ 380 px), giving a max height of ~94 px including padding.
+     * 104 px keeps the +/- zoom controls clear in either layout. */
+    top: 104px;
+  }
+}
