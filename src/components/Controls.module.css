@@ -1,0 +1,113 @@
+.bar {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(11, 13, 18, 0.78);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1000;
+  max-width: calc(100vw - 24px);
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  padding-right: 6px;
+  border-right: 1px solid var(--border);
+  margin-right: 2px;
+}
+
+.group {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.preset {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.preset[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Long label is the default; short label is hidden until we hit a narrow
+ * mobile breakpoint. */
+.presetLabel       { display: inline; }
+.presetLabelShort  { display: none; }
+
+@media (max-width: 380px) {
+  .presetLabel      { display: none; }
+  .presetLabelShort { display: inline; }
+}
+
+/* `.presetWide` is set on presets we'd rather drop on small phones than
+ * cram into a too-narrow bar. */
+@media (max-width: 420px) {
+  .presetWide { display: none; }
+}
+
+/* ===== Mobile (≤ 640 px) ====================================== */
+/* Shrink the bar to its essentials. The brand/SOLUX label and the
+ * "DATE" / "VIEW" sub-labels become noise on small screens, so we hide
+ * them. Touch targets grow. */
+@media (max-width: 640px) {
+  .bar {
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    transform: none;
+    max-width: calc(100vw - 16px);
+    padding: 6px 8px;
+    gap: 6px;
+    justify-content: center;
+  }
+  .brand,
+  .label {
+    display: none;
+  }
+  .preset {
+    /* Bigger tap target on phones. */
+    padding: 8px 10px;
+    font-size: 13px;
+    min-height: 36px;
+  }
+  .group {
+    gap: 4px;
+    /* Switch from inline-flex → flex on mobile so the group fills the
+     * bar width (`width: 100%`) and its children wrap rather than
+     * overflowing horizontally. Without this, the inline-flex group
+     * extends to fit its content even if that pushes children off the
+     * bar's right edge, which is what was happening to "+7 days". */
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .bar input[type='date'] {
+    /* Tight cap on the date input width so the three preset buttons
+     * fit on the same row at typical phone widths (≥ 360 px). */
+    max-width: 150px;
+    min-width: 130px;
+  }
+}
