@@ -1,0 +1,230 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.coords {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.date {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.zone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.zoneCaption {
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.browserNote {
+  font-size: 11px;
+  color: var(--fg-faint);
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 2px solid var(--blue);
+  padding-left: 8px;
+  margin-top: 4px;
+}
+
+.rows {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+}
+
+.row {
+  display: contents;
+}
+
+.row:hover .label,
+.row:hover .value {
+  color: var(--fg);
+}
+
+.label {
+  color: var(--fg-muted);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  font-size: 13px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.value.missing {
+  color: var(--fg-faint);
+  font-style: italic;
+}
+
+.section {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-faint);
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+
+.section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.empty {
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot.gold  { background: var(--accent); }
+.dot.blue  { background: var(--blue); }
+.dot.dark  { background: #4a5060; }
+.dot.bright { background: #fff4c2; }
+
+/*
+ * Thin one-line status caption below the timezone disclosure. Tells the
+ * user that the times in the list above have been replaced with
+ * visibility-adjusted values from nearby buildings.
+ */
+.buildingsStatus {
+  /* Plain block so the inline text and <strong> elements flow as one
+   * sentence. We previously had `display: flex` here which split each
+   * text node into its own flex item — the words wrapped independently
+   * and the caption became unreadable. */
+  display: block;
+  font-size: 11px;
+  color: var(--blue);
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.buildingsStatusErr {
+  color: var(--fg-faint);
+  font-style: italic;
+}
+
+.buildingsSpinner {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--blue);
+  border-right-color: transparent;
+  animation: solux-spin 0.7s linear infinite;
+  /* Sit on the text baseline rather than the bottom of the line box. */
+  vertical-align: -1px;
+  margin-right: 6px;
+}
+
+@keyframes solux-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/*
+ * Per-row markers when the value has been replaced with the
+ * visibility-adjusted equivalent. We tint adjusted values in the same blue
+ * we use for the buildings-status caption so the visual language is
+ * consistent; blocked rows go italic+muted with a small "·blocked" badge.
+ */
+.value.adjusted {
+  color: var(--blue);
+}
+
+.value.blocked {
+  color: var(--fg-faint);
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+/*
+ * When a row's value can be tapped to reveal more info (adjusted or
+ * blocked), we wrap it in a real <button> for accessibility. Strip the
+ * button chrome so it looks identical to the static span. The dotted
+ * underline communicates "there's more here" without screaming.
+ */
+.valueButton {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted var(--fg-faint);
+  text-underline-offset: 3px;
+  text-align: right;
+}
+
+.valueButton.adjusted {
+  text-decoration-color: var(--blue);
+}
+
+.valueButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/*
+ * Inline "secondary detail" that drops below a tapped row. Spans both
+ * columns of the grid and uses a smaller, muted font. This is the mobile-
+ * friendly substitute for the native title tooltip.
+ */
+.detailLine {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--fg-muted);
+  font-style: italic;
+  padding: 2px 0 4px 18px;
+  line-height: 1.4;
+  border-left: 2px solid var(--blue);
+  margin-left: 4px;
+}
