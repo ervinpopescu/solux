@@ -39,7 +39,7 @@ export const SUN_PATH_LAYER_ID = 'sun-path-layer';
 // to a dot or balloons across the whole world at the extremes.
 const ARC_REF_ZOOM = 15;
 const ARC_SCALE_MIN = 0.18; // ~72 m at deep zoom
-const ARC_SCALE_MAX = 4;    // ~1.6 km when zoomed out
+const ARC_SCALE_MAX = 4; // ~1.6 km when zoomed out
 
 function arcScaleForZoom(zoom: number): number {
   const k = Math.pow(2, ARC_REF_ZOOM - zoom);
@@ -127,17 +127,22 @@ function buildQuadBuffer(centres: number[]): Float32Array {
   const out = new Float32Array(n * 6 * 5);
   let o = 0;
   for (let i = 0; i < n; i++) {
-    const px = centres[i * 3], py = centres[i * 3 + 1], pz = centres[i * 3 + 2];
+    const px = centres[i * 3],
+      py = centres[i * 3 + 1],
+      pz = centres[i * 3 + 2];
     for (let c = 0; c < 6; c++) {
-      out[o++] = px; out[o++] = py; out[o++] = pz;
-      out[o++] = CORNERS[c * 2]; out[o++] = CORNERS[c * 2 + 1];
+      out[o++] = px;
+      out[o++] = py;
+      out[o++] = pz;
+      out[o++] = CORNERS[c * 2];
+      out[o++] = CORNERS[c * 2 + 1];
     }
   }
   return out;
 }
 
 // Stride/offsets for the interleaved [pos.xyz, corner.xy] layout.
-const STRIDE = 5 * 4;        // 5 floats × 4 bytes
+const STRIDE = 5 * 4; // 5 floats × 4 bytes
 const CORNER_OFFSET = 3 * 4; // corner starts after the 3 position floats
 
 // ── Factory ────────────────────────────────────────────────────────────────
@@ -167,12 +172,7 @@ export function createSunPathLayer(
   // untouched so only the radius scales, not the centre.
   function modelMatrixForScale(k: number): number[] {
     const sk = S * k;
-    return [
-      sk, 0, 0, 0,
-      0, 0, sk, 0,
-      0, sk, 0, 0,
-      origin.x, origin.y, oz, 1,
-    ];
+    return [sk, 0, 0, 0, 0, 0, sk, 0, 0, sk, 0, 0, origin.x, origin.y, oz, 1];
   }
 
   // ── Geometry (in local metre space) ─────────────────────────────────────────
@@ -208,15 +208,15 @@ export function createSunPathLayer(
 
   // Event waypoints (sunrise / solar noon / sunset). Static for the day: one
   // quad per marker, drawn as a distinctive ringed dot in the render loop.
-  const markers = buildArcMarkers(pin, dayStartUtc, solarTimes);
+  const markers = buildArcMarkers(pin, solarTimes);
   const markerCentres = markers.flatMap((m) => m.pos);
   const markerQuad = buildQuadBuffer(markerCentres);
   // Per-kind core colour; each marker is drawn as a white halo + this core so
   // it reads as a labelled waypoint rather than another arc dot.
   const MARKER_COLORS: Record<ArcMarkerKind, number> = {
     sunrise: 0xffb347, // warm gold — sun clearing the horizon
-    noon:    0xfff2c2, // bright warm white — highest point
-    sunset:  0xff5e3a, // deep orange-red — sun dropping behind the skyline
+    noon: 0xfff2c2, // bright warm white — highest point
+    sunset: 0xff5e3a, // deep orange-red — sun dropping behind the skyline
   };
 
   // ── WebGL state ───────────────────────────────────────────────────────────
@@ -274,12 +274,12 @@ export function createSunPathLayer(
         return;
       }
 
-      prog      = p;
-      aPos      = gl.getAttribLocation(prog, 'a_pos');
-      aCorner   = gl.getAttribLocation(prog, 'a_corner');
-      uMvp      = gl.getUniformLocation(prog, 'u_mvp');
-      uColor    = gl.getUniformLocation(prog, 'u_color');
-      uSize     = gl.getUniformLocation(prog, 'u_size');
+      prog = p;
+      aPos = gl.getAttribLocation(prog, 'a_pos');
+      aCorner = gl.getAttribLocation(prog, 'a_corner');
+      uMvp = gl.getUniformLocation(prog, 'u_mvp');
+      uColor = gl.getUniformLocation(prog, 'u_color');
+      uSize = gl.getUniformLocation(prog, 'u_size');
       uViewport = gl.getUniformLocation(prog, 'u_viewport');
 
       arcBufs = groups.map(({ verts }) => {
@@ -337,7 +337,7 @@ export function createSunPathLayer(
 
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE); // additive bloom
         gl.uniform1f(uSize, 26.0);
-        gl.uniform4f(uColor, rgb[0], rgb[1], rgb[2], 0.10);
+        gl.uniform4f(uColor, rgb[0], rgb[1], rgb[2], 0.1);
         gl.drawArrays(gl.TRIANGLES, 0, count);
 
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // crisp core
@@ -373,7 +373,7 @@ export function createSunPathLayer(
 
           gl.blendFunc(gl.SRC_ALPHA, gl.ONE); // coloured halo
           gl.uniform1f(uSize, 30.0);
-          gl.uniform4f(uColor, rgb[0], rgb[1], rgb[2], 0.30);
+          gl.uniform4f(uColor, rgb[0], rgb[1], rgb[2], 0.3);
           gl.drawArrays(gl.TRIANGLES, first, 6);
 
           gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // coloured core
@@ -392,7 +392,7 @@ export function createSunPathLayer(
     },
 
     onRemove() {
-      arcBufs?.forEach(b => gl.deleteBuffer(b));
+      arcBufs?.forEach((b) => gl.deleteBuffer(b));
       if (sphereBuf) gl.deleteBuffer(sphereBuf);
       if (markerBuf) gl.deleteBuffer(markerBuf);
       if (prog) gl.deleteProgram(prog);

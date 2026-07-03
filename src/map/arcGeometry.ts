@@ -9,25 +9,19 @@ const ARC_RADIUS_M = 400;
 // which is enough for smooth curvature without excessive geometry.
 const STEP_MIN = 5;
 
-export type ArcPhase =
-  | 'twilight'
-  | 'blue_hour'
-  | 'golden_hour'
-  | 'soft_light'
-  | 'late'
-  | 'midday';
+export type ArcPhase = 'twilight' | 'blue_hour' | 'golden_hour' | 'soft_light' | 'late' | 'midday';
 
 // Per-phase arc colour — a photographer's light scale. The arc's colour *is*
 // the data: each hue is the actual quality of light at that moment, so the
 // warm gold of golden hour and the cool wash of blue hour read at a glance.
 // Twilight is lifted off pure navy so it stays visible on the dark basemap.
 export const PHASE_COLORS: Record<ArcPhase, number> = {
-  twilight:     0x2a3a66,
-  blue_hour:    0x4f8fe6,
-  golden_hour:  0xff9e2c,
-  soft_light:   0xe8c79a,
-  late:         0xf0ddc8,
-  midday:       0xfdf6e3, // warm white, not clinical
+  twilight: 0x2a3a66,
+  blue_hour: 0x4f8fe6,
+  golden_hour: 0xff9e2c,
+  soft_light: 0xe8c79a,
+  late: 0xf0ddc8,
+  midday: 0xfdf6e3, // warm white, not clinical
 };
 
 export type ArcSample = {
@@ -53,7 +47,7 @@ export type ArcSample = {
  * The origin is the pin; Y is altitude above ground.
  */
 export function sunToThreeXYZ(
-  suncalcAzimuth: number,  // radians, SunCalc convention: south=0, west=PI/2
+  suncalcAzimuth: number, // radians, SunCalc convention: south=0, west=PI/2
   suncalcAltitude: number, // radians above horizon
   radiusM: number = ARC_RADIUS_M,
 ): [number, number, number] {
@@ -61,8 +55,8 @@ export function sunToThreeXYZ(
   // south=0 + PI → south=PI; east=-PI/2 + PI → east=PI/2. ✓
   const bearing = suncalcAzimuth + Math.PI;
   const horizDist = radiusM * Math.cos(suncalcAltitude);
-  const x =  horizDist * Math.sin(bearing); // east
-  const y =  radiusM   * Math.sin(suncalcAltitude); // altitude
+  const x = horizDist * Math.sin(bearing); // east
+  const y = radiusM * Math.sin(suncalcAltitude); // altitude
   const z = -horizDist * Math.cos(bearing); // south (-cos because bearing=0 is north)
   return [x, y, z];
 }
@@ -76,14 +70,12 @@ function inWindow(t: Date, w: TimeWindow | null): boolean {
 /** Returns the solar phase the sun is in at time `t` for the given day. */
 export function classifyPhase(t: Date, times: SolarTimes): ArcPhase {
   // Check specific phase windows from narrowest (most distinctive) to widest.
-  if (inWindow(t, times.blueHourMorning) || inWindow(t, times.blueHourEvening))
-    return 'blue_hour';
+  if (inWindow(t, times.blueHourMorning) || inWindow(t, times.blueHourEvening)) return 'blue_hour';
   if (inWindow(t, times.goldenHourMorning) || inWindow(t, times.goldenHourEvening))
     return 'golden_hour';
   if (inWindow(t, times.softLightMorning) || inWindow(t, times.softLightEvening))
     return 'soft_light';
-  if (inWindow(t, times.lateMorning) || inWindow(t, times.lateAfternoon))
-    return 'late';
+  if (inWindow(t, times.lateMorning) || inWindow(t, times.lateAfternoon)) return 'late';
   // Before civil dawn or after civil dusk the sky is still dark twilight.
   if (times.civilDawn && t < times.civilDawn) return 'twilight';
   if (times.civilDusk && t > times.civilDusk) return 'twilight';
@@ -117,7 +109,9 @@ export function buildArcSamples(
 
     const [xM, yM, zM] = sunToThreeXYZ(pos.azimuth, pos.altitude);
     samples.push({
-      xM, yM, zM,
+      xM,
+      yM,
+      zM,
       phase: classifyPhase(t, solarTimes),
       minuteOfDay: m,
     });
@@ -160,11 +154,7 @@ export type ArcMarker = {
  * noon uses its true (highest) altitude. Events that don't occur on the date
  * (polar day/night) are simply omitted.
  */
-export function buildArcMarkers(
-  pin: LatLng,
-  dayStartUtc: Date,
-  solarTimes: SolarTimes,
-): ArcMarker[] {
+export function buildArcMarkers(pin: LatLng, solarTimes: SolarTimes): ArcMarker[] {
   const markers: ArcMarker[] = [];
   const add = (when: Date | null, kind: ArcMarkerKind, clampToHorizon: boolean) => {
     if (!when) return;

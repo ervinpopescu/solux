@@ -16,16 +16,20 @@ type Hit = {
 type Props = { onPin: (latLng: LatLng) => void };
 
 export default function SearchBox({ onPin }: Props) {
-  const [query, setQuery]     = useState('');
-  const [hits, setHits]       = useState<Hit[]>([]);
+  const [query, setQuery] = useState('');
+  const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
-  const [open, setOpen]       = useState(false);
+  const [open, setOpen] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const search = useCallback(async (q: string) => {
-    if (q.trim().length < 3) { setHits([]); setOpen(false); return; }
+    if (q.trim().length < 3) {
+      setHits([]);
+      setOpen(false);
+      return;
+    }
 
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -41,12 +45,15 @@ export default function SearchBox({ onPin }: Props) {
       const contact = import.meta.env.VITE_NOMINATIM_CONTACT as string | undefined;
       if (contact) url.searchParams.set('email', contact);
 
-      const res  = await fetch(url.toString(), { signal: abortRef.current.signal });
+      const res = await fetch(url.toString(), { signal: abortRef.current.signal });
       const data = (await res.json()) as Hit[];
       setHits(data);
       setOpen(data.length > 0);
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') { setHits([]); setOpen(false); }
+      if ((err as Error).name !== 'AbortError') {
+        setHits([]);
+        setOpen(false);
+      }
     } finally {
       setLoading(false);
     }

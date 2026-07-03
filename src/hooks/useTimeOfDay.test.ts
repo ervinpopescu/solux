@@ -18,7 +18,9 @@ describe('useTimeOfDay', () => {
     vi.setSystemTime(new Date('2024-06-21T14:30:00Z'));
     const { result } = renderHook(() => useTimeOfDay('Europe/London'));
     expect(result.current).toBe(930);
-    act(() => { vi.advanceTimersByTime(60_000); });
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
     expect(result.current).toBe(931);
   });
 
@@ -26,10 +28,9 @@ describe('useTimeOfDay', () => {
     vi.useFakeTimers();
     // 14:30 UTC = 10:30 in America/New_York (EDT, UTC-4)
     vi.setSystemTime(new Date('2024-06-21T14:30:00Z'));
-    const { result, rerender } = renderHook(
-      ({ zone }) => useTimeOfDay(zone),
-      { initialProps: { zone: 'UTC' } },
-    );
+    const { result, rerender } = renderHook(({ zone }) => useTimeOfDay(zone), {
+      initialProps: { zone: 'UTC' },
+    });
     expect(result.current).toBe(14 * 60 + 30); // 870
 
     rerender({ zone: 'America/New_York' });

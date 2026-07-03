@@ -134,12 +134,7 @@ export function createShadowLayer(pin: LatLng): ShadowLayerHandle {
   const oz = origin.z ?? 0;
 
   // Same local-metre → mercator model matrix as the arc (X=east, Y=up, Z=south).
-  const modelMatrix: number[] = [
-    S, 0, 0, 0,
-    0, 0, S, 0,
-    0, S, 0, 0,
-    origin.x, origin.y, oz, 1,
-  ];
+  const modelMatrix: number[] = [S, 0, 0, 0, 0, 0, S, 0, 0, S, 0, 0, origin.x, origin.y, oz, 1];
 
   // ── State that drives the mesh ────────────────────────────────────────────
   let buildings: ShadowBuilding[] = [];
@@ -247,8 +242,13 @@ export function createShadowLayer(pin: LatLng): ShadowLayerHandle {
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
         gl.useProgram(washProg);
-        gl.uniform4f(uColor, SHADOW_COLOR[0], SHADOW_COLOR[1], SHADOW_COLOR[2],
-          SHADOW_MAX_ALPHA * shadowAlpha);
+        gl.uniform4f(
+          uColor,
+          SHADOW_COLOR[0],
+          SHADOW_COLOR[1],
+          SHADOW_COLOR[2],
+          SHADOW_MAX_ALPHA * shadowAlpha,
+        );
         gl.bindBuffer(gl.ARRAY_BUFFER, fsBuf);
         gl.enableVertexAttribArray(aClip);
         gl.vertexAttribPointer(aClip, 2, gl.FLOAT, false, 0, 0);
