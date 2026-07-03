@@ -18,8 +18,14 @@
 // pulling in a closed-form solver.
 
 import SunCalc from 'suncalc';
-import type { EffectiveVisibility, HorizonProfile, LatLng, SolarTimes, TimeWindow } from '../types';
-import { obstructionAt } from './horizon';
+import type {
+  EffectiveVisibility,
+  HorizonProfile,
+  LatLng,
+  SolarTimes,
+  TimeWindow,
+} from '../types';
+import { obstructionAtSunAzimuth } from './horizon';
 
 /** Minutes scanned either side of the geometric event. */
 const SCAN_HALF_WINDOW_MIN = 240;
@@ -30,7 +36,7 @@ const REFINE_PRECISION_MS = 1_000;
 
 function isSunVisible(pin: LatLng, when: Date, profile: HorizonProfile): boolean {
   const { altitude, azimuth } = SunCalc.getPosition(when, pin.lat, pin.lng);
-  return altitude > obstructionAt(profile, azimuth);
+  return altitude > obstructionAtSunAzimuth(profile, azimuth);
 }
 
 /**
@@ -127,12 +133,20 @@ export function computeEffectiveVisibility(
   profile: HorizonProfile,
 ): EffectiveVisibility {
   const obstrAtSunriseDeg = times.sunrise
-    ? (obstructionAt(profile, SunCalc.getPosition(times.sunrise, pin.lat, pin.lng).azimuth) * 180) /
+    ? (obstructionAtSunAzimuth(
+        profile,
+        SunCalc.getPosition(times.sunrise, pin.lat, pin.lng).azimuth,
+      ) *
+        180) /
       Math.PI
     : null;
 
   const obstrAtSunsetDeg = times.sunset
-    ? (obstructionAt(profile, SunCalc.getPosition(times.sunset, pin.lat, pin.lng).azimuth) * 180) /
+    ? (obstructionAtSunAzimuth(
+        profile,
+        SunCalc.getPosition(times.sunset, pin.lat, pin.lng).azimuth,
+      ) *
+        180) /
       Math.PI
     : null;
 

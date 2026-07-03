@@ -3,7 +3,12 @@
 // expected obstruction angles are simple enough to verify analytically.
 
 import { describe, expect, it } from 'vitest';
-import { buildHorizonProfile, obstructionAt, tallestObstruction } from './horizon';
+import {
+  buildHorizonProfile,
+  obstructionAt,
+  obstructionAtSunAzimuth,
+  tallestObstruction,
+} from './horizon';
 import type { Building, LatLng } from '../types';
 
 const PIN: LatLng = { lat: 51.5, lng: 0.0 };
@@ -39,6 +44,32 @@ describe('buildHorizonProfile', () => {
     // to azimuth 0 because every vertex sits there.
     expect(profile.bucketsRad[1]).toBe(0);
     expect(profile.bucketsRad[180]).toBe(0);
+  });
+
+  it('samples along edges so a wide wall obstructs every bucket it spans', () => {
+    // A wall ~50 m due north, running E–W, its endpoints 30 m to either side.
+    // Its nearest point is due north (bucket 0); no vertex sits there, so the
+    // old vertex-only sampling left bucket 0 empty and reported "in sun" even
+    // though the wall clearly blocks that direction — the bug behind the badge
+    // disagreeing with the rendered ground shadow.
+    const dLatN = 50 / 111_320;
+    const dLngE = 30 / (111_320 * Math.cos((PIN.lat * Math.PI) / 180));
+    const wall: Building = {
+      geometry: [
+        { lat: PIN.lat + dLatN, lng: PIN.lng - dLngE },
+        { lat: PIN.lat + dLatN, lng: PIN.lng + dLngE },
+      ],
+      heightMeters: 30,
+      heightFromTag: true,
+    };
+
+    const profile = buildHorizonProfile(PIN, [wall], 1000, PIN.lat, PIN.lng);
+
+    // Bucket 0 (due north, nearest wall point at ~50 m) is now filled.
+    expect(profile.bucketsRad[0]).toBeCloseTo(Math.atan2(28.3, 50), 2);
+    // And the spans partway toward each endpoint, not just the endpoints.
+    expect(profile.bucketsRad[10]).toBeGreaterThan(0);
+    expect(profile.bucketsRad[350]).toBeGreaterThan(0);
   });
 
   it('keeps the maximum when two buildings sit in the same azimuth', () => {
@@ -119,5 +150,17 @@ describe('buildHorizonProfile', () => {
   it('returns null tallest when nothing is obstructing', () => {
     const profile = buildHorizonProfile(PIN, [], 1000, PIN.lat, PIN.lng);
     expect(tallestObstruction(profile)).toBeNull();
+  });
+
+  it('obstructionAtSunAzimuth converts the south-based sun azimuth to compass buckets', () => {
+    // Obstruction recorded due south → compass bucket 180.
+    const profile = buildHorizonProfile(PIN, [], 1000, PIN.lat, PIN.lng);
+    profile.bucketsRad[180] = 0.3;
+
+    // SunCalc azimuth 0 = south, so the sun-aware lookup must read bucket 180.
+    // A raw lookup (no conversion) would read bucket 0 and see nothing — the
+    // 180° bug this helper exists to prevent.
+    expect(obstructionAtSunAzimuth(profile, 0)).toBeCloseTo(0.3, 5);
+    expect(obstructionAt(profile, 0)).toBe(0);
   });
 });
