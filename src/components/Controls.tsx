@@ -5,6 +5,7 @@
 // Top-floating bar with:
 //   - Brand label
 //   - Date input + preset buttons (Today / Tomorrow / +7 days)
+//   - Time-of-day slider (0–1439 minutes) with live indicator dot
 //   - Display-mode selector
 //
 // "Today" here means "today in the pinned location's timezone", not the
@@ -30,7 +31,20 @@ type ControlsProps = {
    * is overridden.
    */
   hideDisplayMode?: boolean;
+  // ── Time slider ──────────────────────────────────────────────────────────
+  /** Current time of day in minutes (0–1439). */
+  timeMinutes: number;
+  /** Called when the user drags the slider. */
+  onTimeMinutesChange: (minutes: number) => void;
+  /** The "live" time (from useTimeOfDay). Used to show the live indicator dot. */
+  liveMinutes: number;
 };
+
+function minutesToLabel(minutes: number): string {
+  const h = Math.floor(minutes / 60).toString().padStart(2, '0');
+  const m = (minutes % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
 
 export default function Controls({
   date,
@@ -39,6 +53,9 @@ export default function Controls({
   onDisplayModeChange,
   pinZone,
   hideDisplayMode,
+  timeMinutes,
+  onTimeMinutesChange,
+  liveMinutes,
 }: ControlsProps) {
   // Recomputed on every render so a long-running tab doesn't get stuck on
   // yesterday's "today" after midnight. Stable function refs aren't worth
@@ -94,6 +111,27 @@ export default function Controls({
             <span className={styles.presetLabelShort}>{p.short}</span>
           </button>
         ))}
+      </div>
+
+      <div className={styles.group}>
+        <label className={styles.label} htmlFor="solux-time">Time</label>
+        <span
+          className={styles.liveDot}
+          title={Math.abs(timeMinutes - liveMinutes) <= 1 ? 'Live' : 'Manual'}
+          data-live={Math.abs(timeMinutes - liveMinutes) <= 1}
+        />
+        <input
+          id="solux-time"
+          type="range"
+          min={0}
+          max={1439}
+          step={1}
+          value={timeMinutes}
+          onChange={(e) => onTimeMinutesChange(Number(e.target.value))}
+          className={styles.timeSlider}
+          aria-valuetext={minutesToLabel(timeMinutes)}
+        />
+        <span className={styles.timeLabel}>{minutesToLabel(timeMinutes)}</span>
       </div>
 
       {!hideDisplayMode && (

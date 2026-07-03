@@ -77,17 +77,56 @@
   }
 }
 
+/* ── Time slider ─────────────────────────────────────────────── */
+.timeSlider {
+  width: 120px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.timeLabel {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* A small dot that glows amber when displaying the live (current) time,
+ * and dims when the slider has been manually moved away from now. */
+.liveDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--fg-faint);
+  flex-shrink: 0;
+  transition: background 200ms;
+}
+.liveDot[data-live='true'] {
+  background: var(--accent);
+  box-shadow: 0 0 4px var(--accent);
+}
+
+@media (max-width: 640px) {
+  .timeSlider {
+    width: 90px;
+  }
+}
+
 /* ===== Mobile (≤ 640 px) ====================================== */
 /* Shrink the bar to its essentials. The brand/SOLUX label and the
  * "DATE" / "VIEW" sub-labels become noise on small screens, so we hide
  * them. Touch targets grow. */
 @media (max-width: 640px) {
   .bar {
-    top: 8px;
-    left: 8px;
-    right: 8px;
+    /* Flows inside the fixed top-stack column (see App.module.css) instead of
+     * positioning itself, so it can't overlap the search box below it. */
+    position: static;
     transform: none;
-    max-width: calc(100vw - 16px);
+    width: 100%;
+    max-width: 100%;
     padding: 6px 8px;
     gap: 6px;
     justify-content: center;
