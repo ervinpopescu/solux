@@ -49,10 +49,7 @@ function memoKey(pin: LatLng, radius: number): string {
   return `${c.lat.toFixed(3)},${c.lng.toFixed(3)},${radius}`;
 }
 
-export function useHorizon(
-  pin: LatLng | null,
-  radius: number = DEFAULT_RADIUS_M,
-): HorizonState {
+export function useHorizon(pin: LatLng | null, radius: number = DEFAULT_RADIUS_M): HorizonState {
   const [state, setState] = useState<HorizonState>({
     status: 'idle',
     profile: null,
@@ -76,7 +73,12 @@ export function useHorizon(
 
     // Fast path: both profile and buildings already available in memory/cache.
     if (cachedProfile && memoedBuildings) {
-      setState({ status: 'ready', profile: cachedProfile, buildings: memoedBuildings, error: null });
+      setState({
+        status: 'ready',
+        profile: cachedProfile,
+        buildings: memoedBuildings,
+        error: null,
+      });
       return;
     }
 
@@ -108,8 +110,7 @@ export function useHorizon(
 
         const center = gridCell(pin);
         const profile =
-          cachedProfile ??
-          buildHorizonProfile(pin, buildings, radius, center.lat, center.lng);
+          cachedProfile ?? buildHorizonProfile(pin, buildings, radius, center.lat, center.lng);
         if (!cachedProfile) saveProfile(pin, profile);
 
 

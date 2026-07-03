@@ -1,0 +1,70 @@
+.map {
+  position: fixed;
+  inset: 0;
+  cursor: crosshair;
+  /* Visible in the sky area when the camera is pitched.
+   * Dark navy gradient reads as twilight sky and fits the dark theme. */
+  background: linear-gradient(to bottom, #0a1520 0%, #1a3a6e 100%);
+}
+
+/* ── Pin sun/shadow badge ────────────────────────────────────────────────
+ * Floats just above the pin tip. Pointer-events off so it never intercepts a
+ * map click. Colour encodes the state: warm = sunlit, cool = shadow, dim =
+ * sun below the horizon. */
+.exposureBadge {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font:
+    600 11px/1 system-ui,
+    -apple-system,
+    sans-serif;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.lit {
+  background: rgba(245, 166, 35, 0.92);
+  color: #2a1900;
+  border-color: rgba(255, 210, 130, 0.6);
+}
+
+.shadow {
+  background: rgba(58, 78, 110, 0.92);
+  color: #e7eef9;
+}
+
+.down {
+  background: rgba(20, 24, 33, 0.85);
+  color: var(--fg-muted, #9aa4b2);
+}
+
+/* Restore grab cursor while panning */
+.map :global(.maplibregl-canvas-container.maplibregl-interactive) {
+  cursor: crosshair;
+}
+.map :global(.maplibregl-canvas-container.maplibregl-interactive:active) {
+  cursor: grabbing;
+}
+
+/* On mobile the full-width Controls + Search stack occupies the top strip and
+ * would otherwise cover the top-right zoom/compass buttons. Push those below
+ * the stack. 144px clears the tallest case (a two-row bar + the search row);
+ * the display-mode select is hidden on mobile so the bar never grows past two
+ * rows. */
+@media (max-width: 640px) {
+  .map :global(.maplibregl-ctrl-top-right) {
+    top: 144px;
+  }
+}

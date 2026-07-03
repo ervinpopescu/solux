@@ -88,39 +88,19 @@ select {
   }
 }
 
-/* Leaflet attribution control: keep readable on dark theme */
-.leaflet-container {
-  background: #1a1f2c;
-  /* Crosshair tells the user the map is clickable. Grab cursor still
-   * appears when actually dragging, courtesy of Leaflet's drag handler. */
-  cursor: crosshair;
-}
-.leaflet-dragging .leaflet-container {
-  cursor: grabbing;
-}
-.leaflet-control-attribution {
+/* MapLibre attribution: readable on dark theme */
+.maplibregl-ctrl-attrib {
   background: rgba(11, 13, 18, 0.7) !important;
   color: var(--fg-muted) !important;
 }
-.leaflet-control-attribution a {
+.maplibregl-ctrl-attrib a {
   color: var(--accent) !important;
 }
 
-/* Leaflet's zoom buttons get a touch-friendly size on mobile, and they're
- * pushed below the floating Solux controls bar so they're never hidden
- * behind it. The controls bar on mobile sits at top: 8px with ~50 px of
- * content, so 64 px clears it. */
+/* Push MapLibre zoom controls below the Solux controls bar on mobile. */
 @media (max-width: 640px) {
-  .leaflet-touch .leaflet-bar a {
-    width: 36px !important;
-    height: 36px !important;
-    line-height: 36px !important;
-    font-size: 20px !important;
-  }
-  .leaflet-top {
-    /* The controls bar may wrap to two rows on very narrow phones
-     * (≤ 380 px), giving a max height of ~94 px including padding.
-     * 104 px keeps the +/- zoom controls clear in either layout. */
-    top: 104px;
+  .maplibregl-ctrl-top-left,
+  .maplibregl-ctrl-top-right {
+    top: 108px;
   }
 }

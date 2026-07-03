@@ -41,7 +41,9 @@ type ControlsProps = {
 };
 
 function minutesToLabel(minutes: number): string {
-  const h = Math.floor(minutes / 60).toString().padStart(2, '0');
+  const h = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, '0');
   const m = (minutes % 60).toString().padStart(2, '0');
   return `${h}:${m}`;
 }
@@ -114,7 +116,9 @@ export default function Controls({
       </div>
 
       <div className={styles.group}>
-        <label className={styles.label} htmlFor="solux-time">Time</label>
+        <label className={styles.label} htmlFor="solux-time">
+          Time
+        </label>
         <span
           className={styles.liveDot}
           title={Math.abs(timeMinutes - liveMinutes) <= 1 ? 'Live' : 'Manual'}

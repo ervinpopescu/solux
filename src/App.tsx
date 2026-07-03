@@ -19,9 +19,12 @@
 // today in the browser's zone — this affects only the initial value of the
 // date input until the user clicks the map.
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { startOfDay } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import Controls from './components/Controls';
-import MapView from './components/MapView';
+import SearchBox from './components/SearchBox';
+import MapLibreView from './map/MapLibreView';
 import SolarInfo from './components/SolarInfo';
 import BottomDrawer from './components/display/BottomDrawer';
 import FloatingCard from './components/display/FloatingCard';
@@ -33,7 +36,11 @@ import { useMediaQuery } from './hooks/useMediaQuery';
 import { usePrefs } from './hooks/usePrefs';
 import { useSolarData } from './hooks/useSolarData';
 import { useTimezone } from './hooks/useTimezone';
+import { useTimeOfDay } from './hooks/useTimeOfDay';
+import { isoDateToNoonUtc } from './solar/calc';
+import { sunExposureAt, type SunExposure } from './solar/exposure';
 import { browserZone, isoDateInZone } from './util/zoneDate';
+import appStyles from './App.module.css';
 
 export default function App() {
   const { prefs, setPin, setDate, setDisplayMode } = usePrefs();
@@ -48,6 +55,18 @@ export default function App() {
 
   const zone = useTimezone(pin);
 
+  // Live minutes in the pin's timezone; used as default for timeMinutes
+  // and to show the live indicator dot on the slider.
+  const liveMinutes = useTimeOfDay(pin ? zone : browserZone());
+
+  // timeMinutes is initialised from liveMinutes and is kept in sync with the
+  // 60-second tick via useEffect. Slider drags override it temporarily; the
+  // next tick snaps it back to the real current time.
+  const [timeMinutes, setTimeMinutes] = useState(liveMinutes);
+  useEffect(() => {
+    setTimeMinutes(liveMinutes);
+  }, [liveMinutes]);
+
   // Resolve the effective date the rest of the app uses. Persisted empty
   // string → "today in the zone we currently know about". This is split
   // from `date` itself so the user can clear the picker and get sensible
@@ -56,6 +75,16 @@ export default function App() {
     if (date) return date;
     return isoDateInZone(new Date(), pin ? zone : browserZone());
   }, [date, pin, zone]);
+
+  // UTC instant of local midnight at the pin — the reference point for the arc
+  // sample loop (minute 0 = local midnight).
+  const dayStartUtc = useMemo<Date | null>(() => {
+    if (!pin || !effectiveDate) return null;
+    const noonUtc = isoDateToNoonUtc(effectiveDate);
+    const localNoon = toZonedTime(noonUtc, zone);
+    const localMidnight = startOfDay(localNoon);
+    return fromZonedTime(localMidnight, zone);
+  }, [effectiveDate, zone, pin]);
 
   // When the user has never set a date, mirror the computed "today" into
   // prefs so the date <input> reflects it. We deliberately only do this once
@@ -67,6 +96,15 @@ export default function App() {
 
   const solarTimes = useSolarData(pin, effectiveDate);
   const horizon = useHorizon(pin);
+
+  // Live "is the pin in sun or building shadow right now?" status, recomputed
+  // as the time slider moves. Uses the same horizon profile as the effective
+  // times so the pin badge and the panel always agree.
+  const exposure = useMemo<SunExposure | null>(() => {
+    if (!pin || !dayStartUtc) return null;
+    const instant = new Date(dayStartUtc.getTime() + timeMinutes * 60_000);
+    return sunExposureAt(pin, instant, horizon.profile);
+  }, [pin, dayStartUtc, timeMinutes, horizon.profile]);
   // When the building horizon is ready, recompute every sun-direct phase
   // against it. Twilight/blue-hour rows pass through unchanged.
   const effectiveTimes = useEffectiveSolarTimes(pin, solarTimes, horizon.profile);
@@ -84,7 +122,7 @@ export default function App() {
   );
 
   // Pick the wrapper for the current display mode. `popup` is special: the
-  // content is rendered *inside* the Leaflet marker popup rather than as an
+  // content is rendered *inside* the MapLibre marker popup rather than as an
   // overlay sibling of the map.
   const overlay = (() => {
     if (!pin) {
@@ -121,15 +159,30 @@ export default function App() {
 
   return (
     <>
-      <MapView pin={pin} onPin={setPin} popupContent={popupContent} />
-      <Controls
-        date={effectiveDate}
-        onDateChange={setDate}
-        displayMode={displayMode}
-        onDisplayModeChange={setDisplayMode}
-        pinZone={pin ? zone : browserZone()}
-        hideDisplayMode={isMobile}
+      <MapLibreView
+        pin={pin}
+        onPin={setPin}
+        popupContent={popupContent}
+        solarTimes={solarTimes}
+        dayStartUtc={dayStartUtc}
+        timeMinutes={timeMinutes}
+        exposure={exposure}
+        buildings={horizon.buildings}
       />
+      <div className={appStyles.topStack}>
+        <Controls
+          date={effectiveDate}
+          onDateChange={setDate}
+          displayMode={displayMode}
+          onDisplayModeChange={setDisplayMode}
+          pinZone={pin ? zone : browserZone()}
+          hideDisplayMode={isMobile}
+          timeMinutes={timeMinutes}
+          onTimeMinutesChange={setTimeMinutes}
+          liveMinutes={liveMinutes}
+        />
+        <SearchBox onPin={setPin} />
+      </div>
       {overlay}
     </>
   );

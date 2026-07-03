@@ -1,0 +1,33 @@
+/* Top overlay stack (Controls + SearchBox).
+ *
+ * On desktop each child keeps its own independent fixed position (Controls
+ * centred at top, SearchBox top-left), so the wrapper must be transparent to
+ * layout — `display: contents` makes it generate no box at all.
+ *
+ * On mobile those two would collide (the Controls bar wraps to two rows, so a
+ * fixed-offset SearchBox overlapped it). Instead we turn the wrapper into a
+ * fixed flex column: the children stack top-to-bottom with a gap and can never
+ * overlap, no matter how many rows the bar wraps into. `pointer-events` is off
+ * on the wrapper so the gaps between children stay tappable on the map, and
+ * back on for the children themselves. */
+.topStack {
+  display: contents;
+}
+
+@media (max-width: 640px) {
+  .topStack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 8px;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  .topStack > * {
+    pointer-events: auto;
+  }
+}

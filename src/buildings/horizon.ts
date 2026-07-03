@@ -101,11 +101,7 @@ export function buildHorizonProfile(
       if (dAz > 180) dAz = 360 - dAz;
       const steps = Math.min(
         MAX_EDGE_SAMPLES,
-        Math.max(
-          1,
-          Math.ceil(edgeLen / EDGE_SAMPLE_STEP_M),
-          Math.ceil(dAz / EDGE_SAMPLE_STEP_DEG),
-        ),
+        Math.max(1, Math.ceil(edgeLen / EDGE_SAMPLE_STEP_M), Math.ceil(dAz / EDGE_SAMPLE_STEP_DEG)),
       );
       // s runs [0, steps): includes the start vertex `a`; the end vertex `c`
       // is the next edge's start, so it isn't double-counted here.

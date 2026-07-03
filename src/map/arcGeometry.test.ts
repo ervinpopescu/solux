@@ -53,26 +53,28 @@ function makeWindow(startH: number, endH: number): { start: Date; end: Date } {
   const base = new Date('2024-06-21T00:00:00Z');
   return {
     start: new Date(base.getTime() + startH * 3_600_000),
-    end:   new Date(base.getTime() + endH   * 3_600_000),
+    end: new Date(base.getTime() + endH * 3_600_000),
   };
 }
 
 const TIMES: SolarTimes = {
   sunrise: new Date('2024-06-21T03:43:00Z'),
-  sunset:  new Date('2024-06-21T20:21:00Z'),
+  sunset: new Date('2024-06-21T20:21:00Z'),
   solarNoon: new Date('2024-06-21T12:01:00Z'),
-  blueHourMorning:   makeWindow(3.0, 3.72),  // ~03:00–03:43
-  goldenHourMorning: makeWindow(3.72, 5.2),  // ~03:43–05:12
-  softLightMorning:  makeWindow(5.2, 6.5),
-  lateMorning:       makeWindow(6.5, 10.5),
-  lateAfternoon:     makeWindow(13.5, 17.5),
-  softLightEvening:  makeWindow(17.5, 18.8),
+  blueHourMorning: makeWindow(3.0, 3.72), // ~03:00–03:43
+  goldenHourMorning: makeWindow(3.72, 5.2), // ~03:43–05:12
+  softLightMorning: makeWindow(5.2, 6.5),
+  lateMorning: makeWindow(6.5, 10.5),
+  lateAfternoon: makeWindow(13.5, 17.5),
+  softLightEvening: makeWindow(17.5, 18.8),
   goldenHourEvening: makeWindow(18.8, 20.35),
-  blueHourEvening:   makeWindow(20.35, 21.0),
-  civilDawn:  new Date('2024-06-21T03:00:00Z'),
-  civilDusk:  new Date('2024-06-21T21:00:00Z'),
-  nauticalDawn: null, nauticalDusk: null,
-  astroDawn: null,    astroDusk: null,
+  blueHourEvening: makeWindow(20.35, 21.0),
+  civilDawn: new Date('2024-06-21T03:00:00Z'),
+  civilDusk: new Date('2024-06-21T21:00:00Z'),
+  nauticalDawn: null,
+  nauticalDusk: null,
+  astroDawn: null,
+  astroDusk: null,
 };
 
 describe('classifyPhase', () => {
@@ -117,7 +119,7 @@ describe('buildArcSamples', () => {
   it('returns only above-horizon samples', () => {
     const samples = buildArcSamples(LONDON, DAY_START, TIMES);
     // Every sample must have positive altitude
-    expect(samples.every(s => s.yM > 0)).toBe(true);
+    expect(samples.every((s) => s.yM > 0)).toBe(true);
   });
 
   it('returns samples spread across the day', () => {
@@ -129,7 +131,7 @@ describe('buildArcSamples', () => {
 
   it('assigns phases from the provided SolarTimes', () => {
     const samples = buildArcSamples(LONDON, DAY_START, TIMES);
-    const phases = new Set(samples.map(s => s.phase));
+    const phases = new Set(samples.map((s) => s.phase));
     // Should see at least golden hour and midday on a long summer day
     expect(phases.has('golden_hour')).toBe(true);
     expect(phases.has('midday')).toBe(true);
@@ -140,16 +142,15 @@ describe('buildArcSamples', () => {
 
 describe('buildArcMarkers', () => {
   const LONDON = { lat: 51.5074, lng: -0.1278 };
-  const DAY_START = new Date('2024-06-20T23:00:00Z');
 
   it('emits one marker per event, in sunrise/noon/sunset order', () => {
-    const markers = buildArcMarkers(LONDON, DAY_START, TIMES);
-    expect(markers.map(m => m.kind)).toEqual(['sunrise', 'noon', 'sunset']);
+    const markers = buildArcMarkers(LONDON, TIMES);
+    expect(markers.map((m) => m.kind)).toEqual(['sunrise', 'noon', 'sunset']);
   });
 
   it('pins sunrise and sunset onto the horizon (Y≈0) but lifts noon above it', () => {
-    const markers = buildArcMarkers(LONDON, DAY_START, TIMES);
-    const byKind = Object.fromEntries(markers.map(m => [m.kind, m.pos]));
+    const markers = buildArcMarkers(LONDON, TIMES);
+    const byKind = Object.fromEntries(markers.map((m) => [m.kind, m.pos]));
     expect(byKind.sunrise[1]).toBeCloseTo(0, 1); // Y = altitude, clamped to horizon
     expect(byKind.sunset[1]).toBeCloseTo(0, 1);
     expect(byKind.noon[1]).toBeGreaterThan(50); // London midsummer noon sun is high
@@ -157,7 +158,7 @@ describe('buildArcMarkers', () => {
 
   it('omits events that do not occur on the date', () => {
     const noSunset: SolarTimes = { ...TIMES, sunset: null };
-    const markers = buildArcMarkers(LONDON, DAY_START, noSunset);
-    expect(markers.map(m => m.kind)).toEqual(['sunrise', 'noon']);
+    const markers = buildArcMarkers(LONDON, noSunset);
+    expect(markers.map((m) => m.kind)).toEqual(['sunrise', 'noon']);
   });
 });

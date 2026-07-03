@@ -35,9 +35,13 @@
   outline: none;
   transition: border-color 120ms;
 }
-.input:focus { border-color: var(--accent); }
+.input:focus {
+  border-color: var(--accent);
+}
 /* Remove the browser's native search ✕ button — we handle clearing via Escape */
-.input::-webkit-search-cancel-button { display: none; }
+.input::-webkit-search-cancel-button {
+  display: none;
+}
 
 .spinner {
   position: absolute;
@@ -50,7 +54,11 @@
   animation: spin 0.7s linear infinite;
   pointer-events: none;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .dropdown {
   position: absolute;

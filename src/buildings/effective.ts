@@ -18,13 +18,7 @@
 // pulling in a closed-form solver.
 
 import SunCalc from 'suncalc';
-import type {
-  EffectiveVisibility,
-  HorizonProfile,
-  LatLng,
-  SolarTimes,
-  TimeWindow,
-} from '../types';
+import type { EffectiveVisibility, HorizonProfile, LatLng, SolarTimes, TimeWindow } from '../types';
 import { obstructionAtSunAzimuth } from './horizon';
 
 /** Minutes scanned either side of the geometric event. */

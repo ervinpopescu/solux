@@ -222,12 +222,20 @@ export function buildShadowMesh(
     const n = r.length / 2;
     for (let i = 0; i < n; i++) {
       const j = (i + 1) % n;
-      const ax = r[i * 2], az = r[i * 2 + 1];
-      const bx = r[j * 2], bz = r[j * 2 + 1];
-      const axo = ax + dx, azo = az + dz;
-      const bxo = bx + dx, bzo = bz + dz;
-      put(ax, az); put(bx, bz); put(bxo, bzo);
-      put(ax, az); put(bxo, bzo); put(axo, azo);
+      const ax = r[i * 2],
+        az = r[i * 2 + 1];
+      const bx = r[j * 2],
+        bz = r[j * 2 + 1];
+      const axo = ax + dx,
+        azo = az + dz;
+      const bxo = bx + dx,
+        bzo = bz + dz;
+      put(ax, az);
+      put(bx, bz);
+      put(bxo, bzo);
+      put(ax, az);
+      put(bxo, bzo);
+      put(axo, azo);
     }
   }
 
