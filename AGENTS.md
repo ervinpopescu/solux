@@ -3,8 +3,10 @@
 ## Project overview
 
 Solux is a pure-frontend SPA (Vite + React 18 + TypeScript) that calculates
-solar phase times for any location on an interactive map. No backend, no
-accounts, no build-time secrets.
+solar phase times for any location on an interactive map. MapLibre GL JS
+renders the vector-tile map with 3D buildings; Three.js provides a custom
+WebGL layer for the 3D sun path arc. No backend, no accounts, no build-time
+secrets.
 
 ## Commands
 
@@ -40,7 +42,13 @@ src/
     useEffectiveSolarTimes.ts  memoised applyHorizonToSolarTimes
     useMediaQuery.ts    CSS media query subscription
   components/
-    MapView.tsx         Leaflet map, click-to-pin, SVG marker
+    map/
+      MapLibreView.tsx    MapLibre GL JS map, click-to-pin, popup, 3D buildings
+      MapLibreView.module.css
+      arcGeometry.ts      Pure functions: sun→XYZ, phase classification, arc samples
+      arcGeometry.test.ts
+      layers/
+        sunPathLayer.ts   Three.js CustomLayerInterface: arc tube + sphere
     Controls.tsx        date picker + presets + view-mode selector
     SolarInfo.tsx       phase list with TZ disclosure + building-adjusted values
     display/            four layout wrappers (FloatingCard, BottomDrawer,
@@ -86,6 +94,25 @@ On `max-width: 640px`:
   the screen on load
 - Leaflet zoom controls are pushed to `top: 104px` to clear the floating bar
 - All interactive elements have a minimum touch target of 36 px
+
+**3D arc layer**
+`sunPathLayer.ts` shares MapLibre's WebGL context via `CustomLayerInterface`
+(`renderingMode: '3d'`). Never call `renderer.setSize()` or set
+`renderer.autoClear = true` — MapLibre owns the canvas. Always call
+`renderer.resetState()` at the start of each `render()` callback.
+
+**Arc vs. horizon pipeline**
+`arcGeometry.ts` uses raw `SolarTimes` (not `effectiveTimes`) for phase
+classification because the arc shows the geometric sun path regardless of
+building obstruction. `effectiveTimes` is still used in `SolarInfo` for the
+adjusted clock times panel.
+
+**MapLibre coordinate transform**
+Three.js objects are placed in Y-up space (X=east, Y=altitude, Z=south).
+The model matrix applied in `render()` — `rotateX(PI/2)` then
+`scale(s, -s, s)` — converts this to MapLibre's mercator space. The scale
+factor `s = MercatorCoordinate.meterInMercatorCoordinateUnits()` converts
+metres to dimensionless mercator units.
 
 **localStorage keys**
 - `solux:prefs:v1` — user preferences (pin, date, displayMode)
