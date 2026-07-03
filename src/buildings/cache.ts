@@ -14,7 +14,10 @@
 
 import type { HorizonProfile, LatLng } from '../types';
 
-const CACHE_PREFIX = 'solux:horizon:v1:';
+// Bumped to v2 when the profile builder switched from vertex-only to
+// edge-sampled obstruction: old cached profiles under-report wide buildings, so
+// they must be discarded rather than reused.
+const CACHE_PREFIX = 'solux:horizon:v2:';
 const GRID_DEG = 0.005; // ~500 m at the equator; tighter near poles
 const TTL_MS = 30 * 24 * 60 * 60_000; // 30 days
 

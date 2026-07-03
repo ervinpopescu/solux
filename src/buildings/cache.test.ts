@@ -98,14 +98,14 @@ describe('saveProfile / loadProfile', () => {
   it('returns null for malformed JSON in localStorage', () => {
     // Construct the cache key manually and inject garbage.
     const cell = gridCell(PIN);
-    const key = `solux:horizon:v1:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const key = `solux:horizon:v2:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
     window.localStorage.setItem(key, '{not json');
     expect(loadProfile(PIN, 1000)).toBeNull();
   });
 
   it('returns null when bucketsRad length is wrong', () => {
     const cell = gridCell(PIN);
-    const key = `solux:horizon:v1:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const key = `solux:horizon:v2:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
     window.localStorage.setItem(
       key,
       JSON.stringify({
