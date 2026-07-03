@@ -17,6 +17,9 @@ A map-driven golden hour calculator for photographers. Click anywhere on the map
 - **Date picker + presets** — Today / Tomorrow / +7 days computed in the pin's timezone
 - **Four display modes** — floating card, bottom drawer, side panel, pin popup; user-selectable and persisted
 - **Mobile-first** — forces bottom drawer on narrow viewports, collapses it by default so the map is immediately tappable, larger touch targets throughout
+- **3D buildings** — OpenFreeMap vector tiles extrude nearby buildings; tilt and rotate the map freely
+- **Sun path arc** — a coloured 3D arc floats above the pin showing the day's path; segments are tinted by phase (deep blue → blue hour → amber golden hour → white midday)
+- **Time slider** — drag to any time of day to preview the sun's position; an amber dot shows when it's tracking the real current time (updates every 60 s)
 - **Offline timezone lookup** — no network call for zone resolution; `tz-lookup` embeds a compact polygon table
 - **Persistence** — pin, date, display mode, and building profiles survive page reload via `localStorage`
 
@@ -26,7 +29,8 @@ A map-driven golden hour calculator for photographers. Click anywhere on the map
 |---|---|
 | Build | Vite 5 + TypeScript |
 | UI | React 18 |
-| Map | Leaflet + react-leaflet (OpenStreetMap) |
+| Map | MapLibre GL JS + OpenFreeMap (vector tiles, no API key) |
+| 3D / sun arc | Three.js (custom WebGL layer inside MapLibre) |
 | Solar math | SunCalc (NOAA algorithm) |
 | Timezone | tz-lookup (offline) |
 | Date formatting | date-fns + date-fns-tz |
@@ -43,7 +47,7 @@ npm run dev
 Open the URL printed by Vite, click anywhere on the map.
 
 ```sh
-npm test          # run unit tests (71 tests across 9 files)
+npm test          # run unit tests (88 tests across 11 files)
 npm run build     # production bundle
 ```
 
