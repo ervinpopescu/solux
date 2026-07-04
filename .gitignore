@@ -8,3 +8,9 @@ coverage
 .vscode
 .idea
 .git-workflow
+
+# Playwright
+test-results
+playwright-report
+blob-report
+playwright/.cache
