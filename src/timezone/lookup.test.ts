@@ -48,4 +48,9 @@ describe('ianaZoneFor', () => {
   it('UTC_FALLBACK is the string "UTC"', () => {
     expect(UTC_FALLBACK).toBe('UTC');
   });
+
+  it('falls back to UTC when tz-lookup cannot place the coordinate', () => {
+    // An out-of-range latitude makes tz-lookup throw; the fallback catches it.
+    expect(ianaZoneFor({ lat: 999, lng: 999 })).toBe(UTC_FALLBACK);
+  });
 });
