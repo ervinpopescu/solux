@@ -7,7 +7,7 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: false,
-    allowedHosts: ['aslan.home.ro'],
+    allowedHosts: ['aslan.home.ro', 'lauras-macbook-pro-2.tail6677f3.ts.net'],
     hmr: {
       host: 'aslan.home.ro',
       protocol: 'ws',

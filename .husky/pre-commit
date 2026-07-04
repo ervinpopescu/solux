@@ -1,0 +1,5 @@
+# Auto-fix lint/format on the staged files, then typecheck the whole project.
+# lint-staged re-stages any fixes it makes; tsc -b aborts the commit on a type
+# error. Heavier suites (unit + e2e) are left to CI.
+npx lint-staged
+npx tsc -b
