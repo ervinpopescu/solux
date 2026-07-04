@@ -14,9 +14,9 @@
 import { describe, expect, it } from 'vitest';
 import { computeSolarTimes, isoDateToNoonUtc } from './calc';
 
-const LONDON  = { lat: 51.5074, lng: -0.1278 };
-const SYDNEY  = { lat: -33.8688, lng: 151.2093 };
-const TROMSO  = { lat: 69.6492, lng: 18.9553 };
+const LONDON = { lat: 51.5074, lng: -0.1278 };
+const SYDNEY = { lat: -33.8688, lng: 151.2093 };
+const TROMSO = { lat: 69.6492, lng: 18.9553 };
 
 describe('computeSolarTimes', () => {
   it('returns a sunrise and sunset for London on the June solstice', () => {
@@ -26,13 +26,11 @@ describe('computeSolarTimes', () => {
     expect(times.sunset).toBeInstanceOf(Date);
     // London June-solstice sunrise is ~04:43 BST = ~03:43 UTC. Allow 30
     // minutes of slack so small SunCalc updates don't flake the test.
-    const sunriseUtcMinutes =
-      times.sunrise!.getUTCHours() * 60 + times.sunrise!.getUTCMinutes();
+    const sunriseUtcMinutes = times.sunrise!.getUTCHours() * 60 + times.sunrise!.getUTCMinutes();
     expect(sunriseUtcMinutes).toBeGreaterThan(3 * 60 + 15);
     expect(sunriseUtcMinutes).toBeLessThan(4 * 60 + 15);
     // Sunset is ~21:21 BST = ~20:21 UTC.
-    const sunsetUtcMinutes =
-      times.sunset!.getUTCHours() * 60 + times.sunset!.getUTCMinutes();
+    const sunsetUtcMinutes = times.sunset!.getUTCHours() * 60 + times.sunset!.getUTCMinutes();
     expect(sunsetUtcMinutes).toBeGreaterThan(20 * 60);
     expect(sunsetUtcMinutes).toBeLessThan(21 * 60);
   });
@@ -67,18 +65,12 @@ describe('computeSolarTimes', () => {
     expect(times.lateAfternoon).not.toBeNull();
 
     // Late morning starts exactly where morning soft light ends.
-    expect(times.lateMorning!.start.getTime()).toEqual(
-      times.softLightMorning!.end.getTime(),
-    );
+    expect(times.lateMorning!.start.getTime()).toEqual(times.softLightMorning!.end.getTime());
     // Late afternoon ends exactly where evening soft light begins.
-    expect(times.lateAfternoon!.end.getTime()).toEqual(
-      times.softLightEvening!.start.getTime(),
-    );
+    expect(times.lateAfternoon!.end.getTime()).toEqual(times.softLightEvening!.start.getTime());
 
     // Both windows should be forward in time.
-    expect(times.lateMorning!.end.getTime()).toBeGreaterThan(
-      times.lateMorning!.start.getTime(),
-    );
+    expect(times.lateMorning!.end.getTime()).toBeGreaterThan(times.lateMorning!.start.getTime());
     expect(times.lateAfternoon!.end.getTime()).toBeGreaterThan(
       times.lateAfternoon!.start.getTime(),
     );
@@ -91,13 +83,9 @@ describe('computeSolarTimes', () => {
     expect(times.softLightEvening).not.toBeNull();
 
     // Morning soft light begins exactly where morning golden hour ends.
-    expect(times.softLightMorning!.start.getTime()).toEqual(
-      times.goldenHourMorning!.end.getTime(),
-    );
+    expect(times.softLightMorning!.start.getTime()).toEqual(times.goldenHourMorning!.end.getTime());
     // Evening soft light ends exactly where evening golden hour begins.
-    expect(times.softLightEvening!.end.getTime()).toEqual(
-      times.goldenHourEvening!.start.getTime(),
-    );
+    expect(times.softLightEvening!.end.getTime()).toEqual(times.goldenHourEvening!.start.getTime());
 
     // The whole soft-light window should be forward in time and shorter
     // than ~2 hours at this latitude/season.
@@ -127,9 +115,7 @@ describe('computeSolarTimes', () => {
     // Note: Sydney's near-midsummer twilight is short; astronomical may or
     // may not occur every day at this latitude depending on the year, but
     // the field shape is still a `Date | null`.
-    expect(
-      times.astroDawn === null || times.astroDawn instanceof Date,
-    ).toBe(true);
+    expect(times.astroDawn === null || times.astroDawn instanceof Date).toBe(true);
   });
 
   it('returns null sunrise/sunset during polar midnight sun (Tromso, June solstice)', () => {

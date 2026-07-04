@@ -18,7 +18,7 @@ import styles from './Controls.module.css';
 import { isoDateInZone } from '../util/zoneDate';
 
 type ControlsProps = {
-  date: string;                // ISO yyyy-mm-dd
+  date: string; // ISO yyyy-mm-dd
   onDateChange: (iso: string) => void;
   displayMode: DisplayMode;
   onDisplayModeChange: (mode: DisplayMode) => void;
@@ -59,18 +59,22 @@ export default function Controls({
     // (≤ 420 px) where the bar can't comfortably fit them all. The first
     // two cover ≈95% of use; "+7 days" can be reached via the date input.
     return [
-      { label: 'Today',    short: 'Today', value: today,   dropOnNarrow: false },
-      { label: 'Tomorrow', short: 'Tmrw',  value: tomorrow, dropOnNarrow: false },
-      { label: '+7 days',  short: '+7d',   value: inAWeek, dropOnNarrow: true  },
+      { label: 'Today', short: 'Today', value: today, dropOnNarrow: false },
+      { label: 'Tomorrow', short: 'Tmrw', value: tomorrow, dropOnNarrow: false },
+      { label: '+7 days', short: '+7d', value: inAWeek, dropOnNarrow: true },
     ];
   }, [pinZone]);
 
   return (
     <div className={styles.bar} role="toolbar" aria-label="Solux controls">
-      <span className={styles.brand} aria-label="Solux">SOLUX</span>
+      <span className={styles.brand} aria-label="Solux">
+        SOLUX
+      </span>
 
       <div className={styles.group}>
-        <label className={styles.label} htmlFor="solux-date">Date</label>
+        <label className={styles.label} htmlFor="solux-date">
+          Date
+        </label>
         <input
           id="solux-date"
           type="date"
@@ -94,14 +98,18 @@ export default function Controls({
 
       {!hideDisplayMode && (
         <div className={styles.group}>
-          <label className={styles.label} htmlFor="solux-display">View</label>
+          <label className={styles.label} htmlFor="solux-display">
+            View
+          </label>
           <select
             id="solux-display"
             value={displayMode}
             onChange={(e) => onDisplayModeChange(e.target.value as DisplayMode)}
           >
             {DISPLAY_MODES.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
             ))}
           </select>
         </div>

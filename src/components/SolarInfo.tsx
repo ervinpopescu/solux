@@ -48,7 +48,7 @@ type SolarInfoProps = {
 /** Compass octant label for an azimuth angle. */
 function compassOctant(deg: number): string {
   const labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  return labels[Math.round(((deg % 360) / 45)) % 8];
+  return labels[Math.round((deg % 360) / 45) % 8];
 }
 
 // Pretty-print a number with a fixed sign of digits. Lat/lng → 4 decimals
@@ -112,20 +112,21 @@ type RowMeta = {
   geomDisplay?: string; // for tooltip
 };
 
-export default function SolarInfo({ times, effective, zone, latLng, date, horizon }: SolarInfoProps) {
+export default function SolarInfo({
+  times,
+  effective,
+  zone,
+  latLng,
+  date,
+  horizon,
+}: SolarInfoProps) {
   // The reference instant we use for "what is the UTC offset for this zone
   // today?". Using the selected date (anchored at noon UTC) means we report
   // the correct offset even when the user picks a date on the other side of
   // a DST transition.
-  const anchor = useMemo(
-    () => (date ? isoDateToNoonUtc(date) : new Date()),
-    [date],
-  );
+  const anchor = useMemo(() => (date ? isoDateToNoonUtc(date) : new Date()), [date]);
 
-  const offsetLabel = useMemo(
-    () => formatOffsetInZone(anchor, zone),
-    [anchor, zone],
-  );
+  const offsetLabel = useMemo(() => formatOffsetInZone(anchor, zone), [anchor, zone]);
 
   const bz = useMemo(() => browserZone(), []);
   const showBrowserNote = bz !== zone && zone !== UTC_FALLBACK;
@@ -136,9 +137,8 @@ export default function SolarInfo({ times, effective, zone, latLng, date, horizo
     return (
       <div className={styles.root}>
         <p className={styles.empty}>
-          Click anywhere on the map to compute sunrise, sunset, and the
-          golden- and blue-hour windows in <strong>the local time of that
-          location</strong>.
+          Click anywhere on the map to compute sunrise, sunset, and the golden- and blue-hour
+          windows in <strong>the local time of that location</strong>.
         </p>
       </div>
     );
@@ -192,41 +192,49 @@ export default function SolarInfo({ times, effective, zone, latLng, date, horizo
       section: 'Pre-dawn',
       items: [
         instantRow('Astronomical dawn', times.astroDawn, effective?.astroDawn, 'dark'),
-        instantRow('Nautical dawn',     times.nauticalDawn, effective?.nauticalDawn, 'dark'),
-        instantRow('Civil dawn',        times.civilDawn, effective?.civilDawn, 'blue'),
-        windowRow ('Blue hour (AM)',    times.blueHourMorning, effective?.blueHourMorning, 'blue'),
+        instantRow('Nautical dawn', times.nauticalDawn, effective?.nauticalDawn, 'dark'),
+        instantRow('Civil dawn', times.civilDawn, effective?.civilDawn, 'blue'),
+        windowRow('Blue hour (AM)', times.blueHourMorning, effective?.blueHourMorning, 'blue'),
       ],
     },
     {
       section: 'Morning',
       items: [
-        instantRow('Sunrise',                times.sunrise, effective?.sunrise, 'gold'),
-        windowRow ('Golden hour (AM)',       times.goldenHourMorning, effective?.goldenHourMorning, 'gold'),
-        windowRow ('Soft light (AM)',        times.softLightMorning, effective?.softLightMorning, 'bright'),
-        windowRow ('Late morning',           times.lateMorning, effective?.lateMorning, 'bright'),
+        instantRow('Sunrise', times.sunrise, effective?.sunrise, 'gold'),
+        windowRow(
+          'Golden hour (AM)',
+          times.goldenHourMorning,
+          effective?.goldenHourMorning,
+          'gold',
+        ),
+        windowRow('Soft light (AM)', times.softLightMorning, effective?.softLightMorning, 'bright'),
+        windowRow('Late morning', times.lateMorning, effective?.lateMorning, 'bright'),
       ],
     },
     {
       section: 'Midday',
-      items: [
-        instantRow('Solar noon', times.solarNoon, effective?.solarNoon, 'bright'),
-      ],
+      items: [instantRow('Solar noon', times.solarNoon, effective?.solarNoon, 'bright')],
     },
     {
       section: 'Evening',
       items: [
-        windowRow ('Late afternoon',         times.lateAfternoon, effective?.lateAfternoon, 'bright'),
-        windowRow ('Soft light (PM)',        times.softLightEvening, effective?.softLightEvening, 'bright'),
-        windowRow ('Golden hour (PM)',       times.goldenHourEvening, effective?.goldenHourEvening, 'gold'),
-        instantRow('Sunset',                 times.sunset, effective?.sunset, 'gold'),
+        windowRow('Late afternoon', times.lateAfternoon, effective?.lateAfternoon, 'bright'),
+        windowRow('Soft light (PM)', times.softLightEvening, effective?.softLightEvening, 'bright'),
+        windowRow(
+          'Golden hour (PM)',
+          times.goldenHourEvening,
+          effective?.goldenHourEvening,
+          'gold',
+        ),
+        instantRow('Sunset', times.sunset, effective?.sunset, 'gold'),
       ],
     },
     {
       section: 'Post-sunset',
       items: [
-        windowRow ('Blue hour (PM)',    times.blueHourEvening, effective?.blueHourEvening, 'blue'),
-        instantRow('Civil dusk',        times.civilDusk, effective?.civilDusk, 'blue'),
-        instantRow('Nautical dusk',     times.nauticalDusk, effective?.nauticalDusk, 'dark'),
+        windowRow('Blue hour (PM)', times.blueHourEvening, effective?.blueHourEvening, 'blue'),
+        instantRow('Civil dusk', times.civilDusk, effective?.civilDusk, 'blue'),
+        instantRow('Nautical dusk', times.nauticalDusk, effective?.nauticalDusk, 'dark'),
         instantRow('Astronomical dusk', times.astroDusk, effective?.astroDusk, 'dark'),
       ],
     },
@@ -260,16 +268,19 @@ export default function SolarInfo({ times, effective, zone, latLng, date, horizo
           <span>Times in local time at this location</span>
         </div>
         <div className={styles.zoneCaption}>
-          {fallback
-            ? 'Zone: UTC (no land timezone here — open ocean)'
-            : <>Zone: <strong>{zone}</strong> ({offsetLabel})</>}
+          {fallback ? (
+            'Zone: UTC (no land timezone here — open ocean)'
+          ) : (
+            <>
+              Zone: <strong>{zone}</strong> ({offsetLabel})
+            </>
+          )}
         </div>
 
         {showBrowserNote && (
           <div className={styles.browserNote}>
-            Your browser is in <strong>{bz}</strong>. The times above are
-            shown in <strong>{zone}</strong> — they are <strong>not</strong>{' '}
-            converted to your local clock.
+            Your browser is in <strong>{bz}</strong>. The times above are shown in{' '}
+            <strong>{zone}</strong> — they are <strong>not</strong> converted to your local clock.
           </div>
         )}
         {horizon && <BuildingsStatus horizon={horizon} />}
@@ -280,11 +291,7 @@ export default function SolarInfo({ times, effective, zone, latLng, date, horizo
           <div className={styles.row} key={section.section}>
             <div className={styles.section}>{section.section}</div>
             {section.items.map((item) => (
-              <PhaseRow
-                key={item.label}
-                item={item}
-                hoverTitle={hoverTitle}
-              />
+              <PhaseRow key={item.label} item={item} hoverTitle={hoverTitle} />
             ))}
           </div>
         ))}
@@ -358,9 +365,7 @@ function PhaseRow({ item, hoverTitle }: PhaseRowProps) {
         {item.label}
       </span>
       {valueNode}
-      {showDetail && (
-        <span className={styles.detailLine}>{detail}</span>
-      )}
+      {showDetail && <span className={styles.detailLine}>{detail}</span>}
     </div>
   );
 }
@@ -385,7 +390,8 @@ function BuildingsStatus({ horizon }: { horizon: HorizonState }) {
   if (horizon.status === 'loading') {
     return (
       <div className={styles.buildingsStatus} title="Fetching OpenStreetMap building data">
-        <span className={styles.buildingsSpinner} aria-hidden /> Adjusting sun-visible times for nearby buildings…
+        <span className={styles.buildingsSpinner} aria-hidden /> Adjusting sun-visible times for
+        nearby buildings…
       </div>
     );
   }
@@ -406,8 +412,9 @@ function BuildingsStatus({ horizon }: { horizon: HorizonState }) {
       {(p.radiusMeters / 1000).toFixed(0)} km radius)
       {tallest && (
         <>
-          {' '}· tallest obstruction <strong>{tallest.altitudeDeg.toFixed(1)}°</strong>{' '}
-          to the <strong>{compassOctant(tallest.azimuthDeg)}</strong>
+          {' '}
+          · tallest obstruction <strong>{tallest.altitudeDeg.toFixed(1)}°</strong> to the{' '}
+          <strong>{compassOctant(tallest.azimuthDeg)}</strong>
         </>
       )}
       .

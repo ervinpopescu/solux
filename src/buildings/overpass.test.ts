@@ -78,7 +78,7 @@ describe('parseBuildings', () => {
         {
           type: 'way',
           tags: { building: 'yes', height: '8' },
-          geometry: [{ lat: 0, lon: 0 }],  // too few vertices
+          geometry: [{ lat: 0, lon: 0 }], // too few vertices
         },
       ],
     });

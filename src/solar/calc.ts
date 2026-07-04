@@ -120,7 +120,7 @@ export function computeSolarTimes(latLng: LatLng, date: Date): SolarTimes {
     // afternoon" (or "magic hour" in its loose sense) in the evening; it's
     // brighter and less warm than the soft-light or golden bands but still
     // a more flattering light than harsh midday.
-    lateMorning:  makeWindow(t.softLightEndMorning, t.lateMorningEnd),
+    lateMorning: makeWindow(t.softLightEndMorning, t.lateMorningEnd),
     lateAfternoon: makeWindow(t.lateAfternoonStart, t.softLightStartEvening),
 
     // Soft light: warm directional light just outside the strict golden

@@ -9,10 +9,7 @@ import type { LatLng, SolarTimes } from '../types';
  * coordinates or date change — the calc itself is cheap, but memoizing keeps
  * referential stability for downstream `React.memo` consumers.
  */
-export function useSolarData(
-  pin: LatLng | null,
-  isoDate: string,
-): SolarTimes | null {
+export function useSolarData(pin: LatLng | null, isoDate: string): SolarTimes | null {
   return useMemo(() => {
     if (!pin || !isoDate) return null;
     return computeSolarTimes(pin, isoDateToNoonUtc(isoDate));

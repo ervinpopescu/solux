@@ -127,10 +127,9 @@ export function parseBuildings(raw: unknown): Building[] {
  *
  * Returns `null` when neither tag is present AND the fallback is disabled.
  */
-function deriveHeight(tags: Record<string, string>):
-  | { value: number; fromTag: true }
-  | { value: number; fromTag: false }
-  | null {
+function deriveHeight(
+  tags: Record<string, string>,
+): { value: number; fromTag: true } | { value: number; fromTag: false } | null {
   // Prefer explicit height. Tag values can include units, e.g. "12 m".
   const rawHeight = tags.height ?? tags['building:height'];
   if (rawHeight) {

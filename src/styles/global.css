@@ -13,15 +13,27 @@
   --gap: 12px;
 
   color-scheme: dark;
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
-    'Inter', 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Inter',
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body, #root {
+html,
+body,
+#root {
   margin: 0;
   height: 100%;
   background: var(--bg);
@@ -40,16 +52,21 @@ button {
   padding: 6px 10px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
-button:hover { background: rgba(255, 255, 255, 0.04); }
+button:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-input[type='date'], select {
+input[type='date'],
+select {
   font: inherit;
   color: var(--fg);
   background: var(--bg-soft);
@@ -64,7 +81,8 @@ input[type='date'], select {
 /* On phones, the system zoom-on-focus behaviour for inputs <16px is
  * annoying because it changes the layout. Bump to 16px there. */
 @media (max-width: 640px) {
-  input[type='date'], select {
+  input[type='date'],
+  select {
     font-size: 16px;
     min-height: 40px;
   }
@@ -84,7 +102,9 @@ input[type='date'], select {
   background: rgba(11, 13, 18, 0.7) !important;
   color: var(--fg-muted) !important;
 }
-.leaflet-control-attribution a { color: var(--accent) !important; }
+.leaflet-control-attribution a {
+  color: var(--accent) !important;
+}
 
 /* Leaflet's zoom buttons get a touch-friendly size on mobile, and they're
  * pushed below the floating Solux controls bar so they're never hidden

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  browserZone,
-  formatOffsetInZone,
-  formatTimeInZone,
-  isoDateInZone,
-} from './zoneDate';
+import { browserZone, formatOffsetInZone, formatTimeInZone, isoDateInZone } from './zoneDate';
 
 // Fixed reference instant: 2024-06-21 12:00:00 UTC
 // In Europe/London  (BST, UTC+01) → 13:00  local, date 2024-06-21
@@ -78,9 +73,9 @@ describe('formatOffsetInZone', () => {
     // Europe/London: 2024-03-31 01:00:00 UTC is the moment clocks go forward.
     // Just before: UTC+00:00 (GMT). Just after: UTC+01:00 (BST).
     const beforeDst = new Date('2024-03-31T00:59:00Z');
-    const afterDst  = new Date('2024-03-31T01:01:00Z');
+    const afterDst = new Date('2024-03-31T01:01:00Z');
     expect(formatOffsetInZone(beforeDst, 'Europe/London')).toBe('UTC+00:00');
-    expect(formatOffsetInZone(afterDst,  'Europe/London')).toBe('UTC+01:00');
+    expect(formatOffsetInZone(afterDst, 'Europe/London')).toBe('UTC+01:00');
   });
 });
 

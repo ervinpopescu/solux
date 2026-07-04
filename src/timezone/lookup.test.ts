@@ -33,10 +33,10 @@ describe('ianaZoneFor', () => {
 
   it('always returns a non-empty string', () => {
     const coords = [
-      { lat: 0, lng: 0 },       // Gulf of Guinea
-      { lat: 90, lng: 0 },      // North Pole
-      { lat: -90, lng: 0 },     // South Pole
-      { lat: 0, lng: 180 },     // Date line
+      { lat: 0, lng: 0 }, // Gulf of Guinea
+      { lat: 90, lng: 0 }, // North Pole
+      { lat: -90, lng: 0 }, // South Pole
+      { lat: 0, lng: 180 }, // Date line
     ];
     for (const c of coords) {
       const zone = ianaZoneFor(c);
