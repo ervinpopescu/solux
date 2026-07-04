@@ -13,5 +13,5 @@ export function useSolarData(pin: LatLng | null, isoDate: string): SolarTimes | 
   return useMemo(() => {
     if (!pin || !isoDate) return null;
     return computeSolarTimes(pin, isoDateToNoonUtc(isoDate));
-  }, [pin?.lat, pin?.lng, isoDate, pin]);
+  }, [pin, isoDate]);
 }

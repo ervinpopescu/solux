@@ -113,7 +113,6 @@ export function useHorizon(pin: LatLng | null, radius: number = DEFAULT_RADIUS_M
           cachedProfile ?? buildHorizonProfile(pin, buildings, radius, center.lat, center.lng);
         if (!cachedProfile) saveProfile(pin, profile);
 
-
         if (myReq !== reqRef.current) return;
         setState({ status: 'ready', profile, buildings, error: null });
       } catch (err) {

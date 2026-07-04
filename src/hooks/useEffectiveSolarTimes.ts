@@ -18,5 +18,5 @@ export function useEffectiveSolarTimes(
   return useMemo(() => {
     if (!pin || !times || !profile) return null;
     return applyHorizonToSolarTimes(pin, times, profile);
-  }, [pin?.lat, pin?.lng, pin, times, profile]);
+  }, [pin, times, profile]);
 }
