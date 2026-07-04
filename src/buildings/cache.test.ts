@@ -33,8 +33,8 @@ describe('gridCell', () => {
   it('two close pins snap to the same cell', () => {
     // Both fall within 0.0025° of 51.505 (the cell centre) so they round
     // to the same grid lat. Similarly for lng at -0.130.
-    const a = gridCell({ lat: 51.5060, lng: -0.1285 });
-    const b = gridCell({ lat: 51.5040, lng: -0.1315 });
+    const a = gridCell({ lat: 51.506, lng: -0.1285 });
+    const b = gridCell({ lat: 51.504, lng: -0.1315 });
     expect(a.lat).toBeCloseTo(b.lat, 4);
     expect(a.lng).toBeCloseTo(b.lng, 4);
   });

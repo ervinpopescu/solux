@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { bearingDeg, distanceMetres } from './geo';
 
 const LONDON: { lat: number; lng: number } = { lat: 51.5074, lng: -0.1278 };
-const PARIS: { lat: number; lng: number }  = { lat: 48.8566, lng:  2.3522 };
+const PARIS: { lat: number; lng: number } = { lat: 48.8566, lng: 2.3522 };
 // Exact same point
-const IDENT  = { lat: 51.5074, lng: -0.1278 };
+const IDENT = { lat: 51.5074, lng: -0.1278 };
 
 describe('distanceMetres', () => {
   it('returns 0 for identical coordinates', () => {
@@ -25,7 +25,7 @@ describe('distanceMetres', () => {
   });
 
   it('handles antipodal points (roughly half Earth circumference)', () => {
-    const north: { lat: number; lng: number } = { lat:  90, lng: 0 };
+    const north: { lat: number; lng: number } = { lat: 90, lng: 0 };
     const south: { lat: number; lng: number } = { lat: -90, lng: 0 };
     const d = distanceMetres(north, south);
     // Half Earth circumference ≈ 20_015 km.

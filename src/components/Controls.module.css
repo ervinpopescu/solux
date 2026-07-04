@@ -53,18 +53,28 @@
 
 /* Long label is the default; short label is hidden until we hit a narrow
  * mobile breakpoint. */
-.presetLabel       { display: inline; }
-.presetLabelShort  { display: none; }
+.presetLabel {
+  display: inline;
+}
+.presetLabelShort {
+  display: none;
+}
 
 @media (max-width: 380px) {
-  .presetLabel      { display: none; }
-  .presetLabelShort { display: inline; }
+  .presetLabel {
+    display: none;
+  }
+  .presetLabelShort {
+    display: inline;
+  }
 }
 
 /* `.presetWide` is set on presets we'd rather drop on small phones than
  * cram into a too-narrow bar. */
 @media (max-width: 420px) {
-  .presetWide { display: none; }
+  .presetWide {
+    display: none;
+  }
 }
 
 /* ===== Mobile (≤ 640 px) ====================================== */

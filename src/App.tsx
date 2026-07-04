@@ -92,15 +92,27 @@ export default function App() {
       // showing the "click the map" prompt, regardless of the configured
       // mode. The empty state is informational only; mode kicks in after
       // the first click.
-      return isMobile
-        ? <BottomDrawer compact startCollapsed>{info}</BottomDrawer>
-        : <FloatingCard>{info}</FloatingCard>;
+      return isMobile ? (
+        <BottomDrawer compact startCollapsed>
+          {info}
+        </BottomDrawer>
+      ) : (
+        <FloatingCard>{info}</FloatingCard>
+      );
     }
     switch (displayMode) {
-      case 'card':   return <FloatingCard>{info}</FloatingCard>;
-      case 'drawer': return <BottomDrawer compact={isMobile} startCollapsed={isMobile}>{info}</BottomDrawer>;
-      case 'panel':  return <SidePanel>{info}</SidePanel>;
-      case 'popup':  return null; // rendered inside the marker
+      case 'card':
+        return <FloatingCard>{info}</FloatingCard>;
+      case 'drawer':
+        return (
+          <BottomDrawer compact={isMobile} startCollapsed={isMobile}>
+            {info}
+          </BottomDrawer>
+        );
+      case 'panel':
+        return <SidePanel>{info}</SidePanel>;
+      case 'popup':
+        return null; // rendered inside the marker
     }
   })();
 

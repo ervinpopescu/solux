@@ -18,13 +18,7 @@
 // pulling in a closed-form solver.
 
 import SunCalc from 'suncalc';
-import type {
-  EffectiveVisibility,
-  HorizonProfile,
-  LatLng,
-  SolarTimes,
-  TimeWindow,
-} from '../types';
+import type { EffectiveVisibility, HorizonProfile, LatLng, SolarTimes, TimeWindow } from '../types';
 import { obstructionAt } from './horizon';
 
 /** Minutes scanned either side of the geometric event. */
@@ -46,12 +40,7 @@ function isSunVisible(pin: LatLng, when: Date, profile: HorizonProfile): boolean
  * the transition occurs (the LATER of the visible/invisible pair after
  * convergence).
  */
-function refine(
-  pin: LatLng,
-  vis: number,
-  inv: number,
-  profile: HorizonProfile,
-): Date {
+function refine(pin: LatLng, vis: number, inv: number, profile: HorizonProfile): Date {
   let lo = vis;
   let hi = inv;
   while (Math.abs(hi - lo) > REFINE_PRECISION_MS) {
@@ -138,20 +127,12 @@ export function computeEffectiveVisibility(
   profile: HorizonProfile,
 ): EffectiveVisibility {
   const obstrAtSunriseDeg = times.sunrise
-    ? (obstructionAt(
-        profile,
-        SunCalc.getPosition(times.sunrise, pin.lat, pin.lng).azimuth,
-      ) *
-        180) /
+    ? (obstructionAt(profile, SunCalc.getPosition(times.sunrise, pin.lat, pin.lng).azimuth) * 180) /
       Math.PI
     : null;
 
   const obstrAtSunsetDeg = times.sunset
-    ? (obstructionAt(
-        profile,
-        SunCalc.getPosition(times.sunset, pin.lat, pin.lng).azimuth,
-      ) *
-        180) /
+    ? (obstructionAt(profile, SunCalc.getPosition(times.sunset, pin.lat, pin.lng).azimuth) * 180) /
       Math.PI
     : null;
 
@@ -206,11 +187,7 @@ function effectiveWindow(
 
   // Inclusive endpoints — geometric phase boundaries can themselves be the
   // visible moments if the obstruction is just below the sun's altitude.
-  for (
-    let t = geom.start.getTime();
-    t <= geom.end.getTime();
-    t += VIS_SCAN_STEP_MS
-  ) {
+  for (let t = geom.start.getTime(); t <= geom.end.getTime(); t += VIS_SCAN_STEP_MS) {
     if (isSunVisible(pin, new Date(t), profile)) {
       if (firstVisible === null) firstVisible = t;
       lastVisible = t;
@@ -228,11 +205,7 @@ function effectiveWindow(
  * For a single-instant event (solar noon, etc.), pass it through if the sun
  * is visible at that moment, otherwise null it out.
  */
-function effectiveInstant(
-  pin: LatLng,
-  geom: Date | null,
-  profile: HorizonProfile,
-): Date | null {
+function effectiveInstant(pin: LatLng, geom: Date | null, profile: HorizonProfile): Date | null {
   if (!geom) return null;
   return isSunVisible(pin, geom, profile) ? geom : null;
 }

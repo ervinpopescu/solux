@@ -40,12 +40,8 @@ describe('applyHorizonToSolarTimes', () => {
     expect(result.nauticalDusk?.getTime()).toBe(geom.nauticalDusk?.getTime());
     expect(result.astroDawn?.getTime()).toBe(geom.astroDawn?.getTime());
     expect(result.astroDusk?.getTime()).toBe(geom.astroDusk?.getTime());
-    expect(result.blueHourMorning?.start.getTime()).toBe(
-      geom.blueHourMorning?.start.getTime(),
-    );
-    expect(result.blueHourEvening?.end.getTime()).toBe(
-      geom.blueHourEvening?.end.getTime(),
-    );
+    expect(result.blueHourMorning?.start.getTime()).toBe(geom.blueHourMorning?.start.getTime());
+    expect(result.blueHourEvening?.end.getTime()).toBe(geom.blueHourEvening?.end.getTime());
 
     // Sun-direct windows survive too on a flat horizon.
     expect(result.goldenHourMorning).not.toBeNull();
@@ -69,12 +65,8 @@ describe('applyHorizonToSolarTimes', () => {
     expect(result.lateAfternoon).toBeNull();
 
     // Twilight/blue-hour fields STILL pass through (they're sky phenomena).
-    expect(result.blueHourMorning?.start.getTime()).toBe(
-      geom.blueHourMorning?.start.getTime(),
-    );
-    expect(result.blueHourEvening?.end.getTime()).toBe(
-      geom.blueHourEvening?.end.getTime(),
-    );
+    expect(result.blueHourMorning?.start.getTime()).toBe(geom.blueHourMorning?.start.getTime());
+    expect(result.blueHourEvening?.end.getTime()).toBe(geom.blueHourEvening?.end.getTime());
     expect(result.civilDawn?.getTime()).toBe(geom.civilDawn?.getTime());
     expect(result.astroDusk?.getTime()).toBe(geom.astroDusk?.getTime());
   });

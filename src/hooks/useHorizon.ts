@@ -28,10 +28,7 @@ export type HorizonState = {
   error: string | null;
 };
 
-export function useHorizon(
-  pin: LatLng | null,
-  radius: number = DEFAULT_RADIUS_M,
-): HorizonState {
+export function useHorizon(pin: LatLng | null, radius: number = DEFAULT_RADIUS_M): HorizonState {
   const [state, setState] = useState<HorizonState>({
     status: 'idle',
     profile: null,
@@ -66,13 +63,7 @@ export function useHorizon(
         const buildings = await fetchBuildings(pin, radius, ctrl.signal);
         if (myReq !== reqRef.current) return; // pin moved; discard stale
         const center = gridCell(pin);
-        const profile = buildHorizonProfile(
-          pin,
-          buildings,
-          radius,
-          center.lat,
-          center.lng,
-        );
+        const profile = buildHorizonProfile(pin, buildings, radius, center.lat, center.lng);
         saveProfile(pin, profile);
         if (myReq !== reqRef.current) return;
         setState({ status: 'ready', profile, error: null });

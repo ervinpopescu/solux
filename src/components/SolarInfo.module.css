@@ -123,10 +123,18 @@
   border-radius: 50%;
   display: inline-block;
 }
-.dot.gold  { background: var(--accent); }
-.dot.blue  { background: var(--blue); }
-.dot.dark  { background: #4a5060; }
-.dot.bright { background: #fff4c2; }
+.dot.gold {
+  background: var(--accent);
+}
+.dot.blue {
+  background: var(--blue);
+}
+.dot.dark {
+  background: #4a5060;
+}
+.dot.bright {
+  background: #fff4c2;
+}
 
 /*
  * Thin one-line status caption below the timezone disclosure. Tells the
@@ -164,8 +172,12 @@
 }
 
 @keyframes solux-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /*
