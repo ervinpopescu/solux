@@ -9,5 +9,5 @@ import type { LatLng } from '../types';
  * downstream formatting code never has to short-circuit on a missing zone.
  */
 export function useTimezone(pin: LatLng | null): string {
-  return useMemo(() => (pin ? ianaZoneFor(pin) : UTC_FALLBACK), [pin?.lat, pin?.lng, pin]);
+  return useMemo(() => (pin ? ianaZoneFor(pin) : UTC_FALLBACK), [pin]);
 }

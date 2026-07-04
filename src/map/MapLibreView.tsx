@@ -224,7 +224,7 @@ export default function MapLibreView({
 
     // Fly to pin with a 3D pitch so buildings are visible.
     map.flyTo({ center: [pin.lng, pin.lat], zoom: 15, pitch: 60, duration: 1000 });
-  }, [pin?.lat, pin?.lng]);
+  }, [pin]);
 
   // ── Pin badge: update sun/shadow status when exposure (time) changes ──────
   // Separate from marker creation so scrubbing the time slider only rewrites
@@ -276,7 +276,7 @@ export default function MapLibreView({
       popupRootRef.current = null;
       popupRef.current = null;
     });
-  }, [popupContent, pin?.lat, pin?.lng]);
+  }, [popupContent, pin]);
 
   // ── Building shadows: add/remove the layer when the pin changes ───────────
   //
@@ -327,7 +327,7 @@ export default function MapLibreView({
     const prepared = pin && buildings ? prepareShadowBuildings(pin, buildings) : [];
     buildingsRef.current = prepared;
     shadowRef.current?.setBuildings(prepared);
-  }, [pin?.lat, pin?.lng, buildings]);
+  }, [pin, buildings]);
 
   // ── Building shadows: update sun direction on time tick / slider ──────────
   // Recomputing the mesh is cheap (a few ms), so we drive it straight off the
@@ -339,7 +339,7 @@ export default function MapLibreView({
     const pos = SunCalc.getPosition(instant, pin.lat, pin.lng);
     sunRef.current = { azimuth: pos.azimuth, altitude: pos.altitude };
     shadowRef.current?.setSun(pos.azimuth, pos.altitude);
-  }, [pin?.lat, pin?.lng, dayStartUtc, timeMinutes]);
+  }, [pin, dayStartUtc, timeMinutes]);
 
   // ── Sun path arc: rebuild when pin, date, or solar times change ───────────
   //

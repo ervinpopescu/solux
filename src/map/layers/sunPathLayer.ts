@@ -300,6 +300,9 @@ export function createSunPathLayer(
 
     render(_gl, options: CustomRenderMethodInput) {
       if (!prog || groups.length === 0) return;
+      // The arc is a 3-D overhead hemisphere — it's meaningless and visually
+      // confusing in a flat top-down view, so skip rendering entirely at pitch 0.
+      if ((storedMap?.getPitch() ?? 60) < 1) return;
 
       // Combine MapLibre's projection with our model matrix in double precision,
       // then upload the result as float32. This keeps the large origin
