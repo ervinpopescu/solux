@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref so a rapid push sequence doesn't
+# pile up redundant CI.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege baseline: all jobs get read-only access by default.
+# Jobs that need more scope (e.g. Codecov PR comments) override it inline.
+permissions:
+  contents: read
+
+jobs:
+  # Style + formatting. Fast and independent of the test job.
+  lint:
+    name: Lint & format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+
+  # Type safety + unit correctness. Runs in parallel with lint.
+  test:
+    name: Typecheck & unit tests
+    runs-on: ubuntu-latest
+    # pull-requests: write lets codecov-action post a coverage comment on the PR.
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx tsc -b
+      - run: npm run test:coverage
+
+      # Report-only (see codecov.yml). fail_ci_if_error stays false so a
+      # missing token or a transient Codecov outage never breaks the build.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  # e2e job lives on feature/3d-map — the specs depend on MapLibre,
+  # the time slider, and the exposure badge which land with that branch.
