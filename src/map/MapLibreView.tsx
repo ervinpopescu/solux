@@ -203,9 +203,13 @@ export default function MapLibreView({
     // centre anchor still lands the pin tip on the coordinate as before.
     const el = document.createElement('div');
     el.style.cssText = 'position:relative;width:32px;height:44px';
+    // Stable hook for e2e tests; the CSS-module class names are hashed.
+    el.dataset.testid = 'map-pin';
 
     const badge = document.createElement('div');
     badge.className = styles.exposureBadge;
+    // Persists across the className reset in the exposure effect below.
+    badge.dataset.testid = 'exposure-badge';
     badgeElRef.current = badge;
 
     const pinEl = document.createElement('div');

@@ -135,7 +135,9 @@ export default function Controls({
           className={styles.timeSlider}
           aria-valuetext={minutesToLabel(timeMinutes)}
         />
-        <span className={styles.timeLabel}>{minutesToLabel(timeMinutes)}</span>
+        <span className={styles.timeLabel} data-testid="time-label">
+          {minutesToLabel(timeMinutes)}
+        </span>
       </div>
 
       {!hideDisplayMode && (
