@@ -32,6 +32,7 @@ import {
   shadowOpacityForAltitude,
   type ShadowBuilding,
 } from '../shadowGeometry';
+import { mat4Mul } from '../mat4';
 
 export const SHADOW_LAYER_ID = 'building-shadow-layer';
 
@@ -89,21 +90,6 @@ const SHADOW_MAX_ALPHA = 0.7;
 // bounced onto the city rather than a flat black veil.
 const NIGHT_COLOR: [number, number, number] = [0.015, 0.025, 0.06];
 const NIGHT_MAX_ALPHA = 0.82;
-
-// ── Math helper (double-precision column-major 4×4 multiply) ──────────────────
-function mat4Mul(a: ArrayLike<number>, b: ArrayLike<number>): number[] {
-  const out = new Array<number>(16);
-  for (let c = 0; c < 4; c++) {
-    for (let r = 0; r < 4; r++) {
-      out[c * 4 + r] =
-        a[0 * 4 + r] * b[c * 4 + 0] +
-        a[1 * 4 + r] * b[c * 4 + 1] +
-        a[2 * 4 + r] * b[c * 4 + 2] +
-        a[3 * 4 + r] * b[c * 4 + 3];
-    }
-  }
-  return out;
-}
 
 function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
   const s = gl.createShader(type)!;
