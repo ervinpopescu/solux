@@ -30,6 +30,7 @@ import {
   type ArcPhase,
   type ArcMarkerKind,
 } from '../arcGeometry';
+import { mat4Mul } from '../mat4';
 
 export const SUN_PATH_LAYER_ID = 'sun-path-layer';
 
@@ -85,24 +86,6 @@ const FRAG = `#version 300 es
     fragColor = u_color;
   }
 `;
-
-// ── Math helpers ─────────────────────────────────────────────────────────────
-
-// Column-major 4×4 multiply in double precision: out = a · b. Both inputs are
-// read as length-16 arrays; the result is a plain (double) number[16].
-function mat4Mul(a: ArrayLike<number>, b: ArrayLike<number>): number[] {
-  const out = new Array<number>(16);
-  for (let c = 0; c < 4; c++) {
-    for (let r = 0; r < 4; r++) {
-      out[c * 4 + r] =
-        a[0 * 4 + r] * b[c * 4 + 0] +
-        a[1 * 4 + r] * b[c * 4 + 1] +
-        a[2 * 4 + r] * b[c * 4 + 2] +
-        a[3 * 4 + r] * b[c * 4 + 3];
-    }
-  }
-  return out;
-}
 
 // ── Render helpers ───────────────────────────────────────────────────────────
 
