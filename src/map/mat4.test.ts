@@ -37,10 +37,22 @@ describe('mat4Mul', () => {
   it('translation matrices compose correctly', () => {
     // Translation by (tx, ty, tz) in column-major: column 3 holds [tx, ty, tz, 1].
     const translate = (tx: number, ty: number, tz: number): number[] => [
-      1, 0, 0, 0, // col 0
-      0, 1, 0, 0, // col 1
-      0, 0, 1, 0, // col 2
-      tx, ty, tz, 1, // col 3
+      1,
+      0,
+      0,
+      0, // col 0
+      0,
+      1,
+      0,
+      0, // col 1
+      0,
+      0,
+      1,
+      0, // col 2
+      tx,
+      ty,
+      tz,
+      1, // col 3
     ];
     expect(mat4Mul(translate(1, 2, 3), translate(4, 5, 6))).toEqual(translate(5, 7, 9));
   });
