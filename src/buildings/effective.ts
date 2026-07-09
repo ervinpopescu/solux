@@ -18,7 +18,7 @@
 // pulling in a closed-form solver.
 
 import SunCalc from 'suncalc';
-import type { EffectiveVisibility, HorizonProfile, LatLng, SolarTimes, TimeWindow } from '../types';
+import type { HorizonProfile, LatLng, SolarTimes, TimeWindow } from '../types';
 import { obstructionAtSunAzimuth } from './horizon';
 
 /** Minutes scanned either side of the geometric event. */
@@ -111,45 +111,6 @@ function findEffectiveSunset(
     prevT = t;
   }
   return null;
-}
-
-/**
- * Compute the building-aware visibility events corresponding to the given
- * geometric `SolarTimes`.
- *
- * `obstructionAt{Sunrise,Sunset}Deg` reports the horizon-profile altitude at
- * the sun's azimuth at the GEOMETRIC sunrise/sunset moment — useful for the
- * UI to explain WHY the times shifted ("east obstruction: 7.4°").
- */
-export function computeEffectiveVisibility(
-  pin: LatLng,
-  times: SolarTimes,
-  profile: HorizonProfile,
-): EffectiveVisibility {
-  const obstrAtSunriseDeg = times.sunrise
-    ? (obstructionAtSunAzimuth(
-        profile,
-        SunCalc.getPosition(times.sunrise, pin.lat, pin.lng).azimuth,
-      ) *
-        180) /
-      Math.PI
-    : null;
-
-  const obstrAtSunsetDeg = times.sunset
-    ? (obstructionAtSunAzimuth(
-        profile,
-        SunCalc.getPosition(times.sunset, pin.lat, pin.lng).azimuth,
-      ) *
-        180) /
-      Math.PI
-    : null;
-
-  return {
-    effectiveSunrise: findEffectiveSunrise(pin, times.sunrise, profile),
-    effectiveSunset: findEffectiveSunset(pin, times.sunset, profile),
-    obstructionAtSunriseDeg: obstrAtSunriseDeg,
-    obstructionAtSunsetDeg: obstrAtSunsetDeg,
-  };
 }
 
 // ==============================================================================
