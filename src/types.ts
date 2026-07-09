@@ -84,10 +84,8 @@ export type Prefs = {
 export type Building = {
   /** Closed polygon (first vertex repeated optional). Lat/lng of OSM nodes. */
   geometry: LatLng[];
-  /** Effective height in metres above ground. Defaulted from levels when missing. */
+  /** Effective height in metres above ground. Derived from OSM height/levels tags. */
   heightMeters: number;
-  /** True if the height came from OSM tags; false if it was a fallback default. */
-  heightFromTag: boolean;
 };
 
 /**

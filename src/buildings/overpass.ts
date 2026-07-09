@@ -27,14 +27,6 @@ const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 /** Metres per building level when only `building:levels` is set. */
 const METRES_PER_LEVEL = 3.5;
 
-/**
- * Fallback height when no tag exists. Set to `null` to ignore untagged
- * buildings entirely. We default to `null` (skip) — it's better to under-
- * report obstruction than to claim a tall building exists when OSM doesn't
- * say so.
- */
-const FALLBACK_HEIGHT_METRES: number | null = null;
-
 export type OverpassError = Error & { kind: 'overpass'; status?: number };
 
 function overpassError(message: string, status?: number): OverpassError {
@@ -110,12 +102,11 @@ export function parseBuildings(raw: unknown): Building[] {
     if (!el.geometry || el.geometry.length < 3) continue;
 
     const h = deriveHeight(el.tags ?? {});
-    if (h === null) continue; // No tag, fallback disabled → skip
+    if (h === null) continue; // No height tag → skip
 
     buildings.push({
       geometry: el.geometry.map((p) => ({ lat: p.lat, lng: p.lon })),
       heightMeters: h.value,
-      heightFromTag: h.fromTag,
     });
   }
   return buildings;
@@ -125,29 +116,22 @@ export function parseBuildings(raw: unknown): Building[] {
  * Compute the height for a building from its tags, preferring an explicit
  * `height` value and falling back to `building:levels * METRES_PER_LEVEL`.
  *
- * Returns `null` when neither tag is present AND the fallback is disabled.
+ * Returns `null` when neither tag is present (untagged buildings are skipped).
  */
-function deriveHeight(
-  tags: Record<string, string>,
-): { value: number; fromTag: true } | { value: number; fromTag: false } | null {
+function deriveHeight(tags: Record<string, string>): { value: number } | null {
   // Prefer explicit height. Tag values can include units, e.g. "12 m".
   const rawHeight = tags.height ?? tags['building:height'];
   if (rawHeight) {
     const v = parseFloat(rawHeight);
-    if (Number.isFinite(v) && v > 0) return { value: v, fromTag: true };
+    if (Number.isFinite(v) && v > 0) return { value: v };
   }
 
   // Fall back to building:levels × meters-per-level.
   const rawLevels = tags['building:levels'];
   if (rawLevels) {
     const n = parseFloat(rawLevels);
-    if (Number.isFinite(n) && n > 0) {
-      return { value: n * METRES_PER_LEVEL, fromTag: true };
-    }
+    if (Number.isFinite(n) && n > 0) return { value: n * METRES_PER_LEVEL };
   }
 
-  if (FALLBACK_HEIGHT_METRES !== null) {
-    return { value: FALLBACK_HEIGHT_METRES, fromTag: false };
-  }
   return null;
 }

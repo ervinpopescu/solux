@@ -32,7 +32,6 @@ describe('buildHorizonProfile', () => {
       // geometry trivial.
       geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
       heightMeters: 30,
-      heightFromTag: true,
     };
 
     const profile = buildHorizonProfile(PIN, [building], 1000, PIN.lat, PIN.lng);
@@ -60,7 +59,6 @@ describe('buildHorizonProfile', () => {
         { lat: PIN.lat + dLatN, lng: PIN.lng + dLngE },
       ],
       heightMeters: 30,
-      heightFromTag: true,
     };
 
     const profile = buildHorizonProfile(PIN, [wall], 1000, PIN.lat, PIN.lng);
@@ -76,12 +74,10 @@ describe('buildHorizonProfile', () => {
     const close: Building = {
       geometry: [northOf(PIN, 100), northOf(PIN, 100), northOf(PIN, 100)],
       heightMeters: 20,
-      heightFromTag: true,
     };
     const far: Building = {
       geometry: [northOf(PIN, 500), northOf(PIN, 500), northOf(PIN, 500)],
       heightMeters: 60,
-      heightFromTag: true,
     };
 
     const profile = buildHorizonProfile(PIN, [close, far], 1000, PIN.lat, PIN.lng);
@@ -95,7 +91,6 @@ describe('buildHorizonProfile', () => {
     const tiny: Building = {
       geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
       heightMeters: 1.0, // below 1.7 m eye level
-      heightFromTag: true,
     };
 
     const profile = buildHorizonProfile(PIN, [tiny], 1000, PIN.lat, PIN.lng);
@@ -109,7 +104,6 @@ describe('buildHorizonProfile', () => {
         {
           geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
           heightMeters: 30,
-          heightFromTag: true,
         },
       ],
       1000,
@@ -132,7 +126,6 @@ describe('buildHorizonProfile', () => {
           // ~50 m north, ~10 m tall → ~10° obstruction at bucket 0.
           geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
           heightMeters: 10,
-          heightFromTag: true,
         },
       ],
       1000,

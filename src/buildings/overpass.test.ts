@@ -25,7 +25,6 @@ describe('parseBuildings', () => {
 
     expect(buildings).toHaveLength(1);
     expect(buildings[0].heightMeters).toBe(12);
-    expect(buildings[0].heightFromTag).toBe(true);
     expect(buildings[0].geometry).toEqual([
       { lat: 1, lng: 2 },
       { lat: 1, lng: 3 },
