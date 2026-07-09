@@ -109,16 +109,3 @@ export type HorizonProfile = {
   /** When the profile was built (ms since epoch). */
   fetchedAt: number;
 };
-
-/**
- * Visibility-corrected sunrise/sunset for a given date, given a horizon
- * profile. `null` when the geometric event itself is null (polar night/day)
- * or when the search couldn't find a transition (deep canyon).
- */
-export type EffectiveVisibility = {
-  effectiveSunrise: Date | null;
-  effectiveSunset: Date | null;
-  /** Obstruction at the sun's azimuth at geometric sunrise/sunset, in degrees. */
-  obstructionAtSunriseDeg: number | null;
-  obstructionAtSunsetDeg: number | null;
-};
