@@ -17,7 +17,10 @@
     "format:check": "prettier --check .",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "prepare": "husky"
+    "prepare": "husky",
+    "serve:https": "bash infra/serve-https.sh",
+    "serve:https:stop": "docker rm -f solux-nginx",
+    "serve:ngrok": "npx ngrok http 5173"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -45,6 +48,7 @@
     "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
+    "@types/node": "^26.1.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/suncalc": "^1.9.2",

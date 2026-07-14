@@ -7,10 +7,10 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: false,
-    allowedHosts: ['aslan.home.ro', 'macbook.tail6677f3.ts.net'],
+    allowedHosts: true, // Allow all hosts to fix the Tailscale wildcard issue
     hmr: {
       host: 'aslan.home.ro',
-      protocol: 'ws',
+      protocol: process.env.VITE_HMR_PROTOCOL || 'ws',
     },
   },
 });

@@ -44,6 +44,25 @@ npm install
 npm run dev
 ```
 
+### HTTPS Support (for Geolocation)
+
+The Geolocation API requires a secure context (HTTPS). You can use the included Nginx reverse proxy (requires Docker):
+
+1. Start the dev server with `wss` protocol:
+   ```sh
+   VITE_HMR_PROTOCOL=wss npm run dev
+   ```
+2. Start the HTTPS proxy:
+   ```sh
+   npm run serve:https
+   ```
+3. Open [https://localhost:8443](https://localhost:8443) (you will need to accept the self-signed certificate).
+
+Alternatively, use **ngrok**:
+```sh
+npm run serve:ngrok
+```
+
 Open the URL printed by Vite, click anywhere on the map.
 
 ```sh
