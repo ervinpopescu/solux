@@ -1,5 +1,5 @@
-// Horizon profile tests using a tiny synthetic set of buildings around a
-// reference pin. We construct buildings whose geometry-to-pin distance and
+// Horizon profile tests using a tiny synthetic set of obstructions around a
+// reference pin. We construct obstructions whose geometry-to-pin distance and
 // expected obstruction angles are simple enough to verify analytically.
 
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,7 @@ import {
   obstructionAtSunAzimuth,
   tallestObstruction,
 } from './horizon';
-import type { Building, LatLng } from '../types';
+import type { Obstruction, LatLng } from '../types';
 
 const PIN: LatLng = { lat: 51.5, lng: 0.0 };
 
@@ -27,11 +27,13 @@ function northOf(pin: LatLng, metres: number): LatLng {
 
 describe('buildHorizonProfile', () => {
   it('records a north-side obstruction in bucket 0', () => {
-    const building: Building = {
+    const building: Obstruction = {
+      kind: 'building',
       // ~50 m north of the pin, all four corners co-located to make the
       // geometry trivial.
       geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
       heightMeters: 30,
+      heightFromTag: true,
     };
 
     const profile = buildHorizonProfile(PIN, [building], 1000, PIN.lat, PIN.lng);
@@ -53,12 +55,14 @@ describe('buildHorizonProfile', () => {
     // disagreeing with the rendered ground shadow.
     const dLatN = 50 / 111_320;
     const dLngE = 30 / (111_320 * Math.cos((PIN.lat * Math.PI) / 180));
-    const wall: Building = {
+    const wall: Obstruction = {
+      kind: 'building',
       geometry: [
         { lat: PIN.lat + dLatN, lng: PIN.lng - dLngE },
         { lat: PIN.lat + dLatN, lng: PIN.lng + dLngE },
       ],
       heightMeters: 30,
+      heightFromTag: true,
     };
 
     const profile = buildHorizonProfile(PIN, [wall], 1000, PIN.lat, PIN.lng);
@@ -71,13 +75,17 @@ describe('buildHorizonProfile', () => {
   });
 
   it('keeps the maximum when two buildings sit in the same azimuth', () => {
-    const close: Building = {
+    const close: Obstruction = {
+      kind: 'building',
       geometry: [northOf(PIN, 100), northOf(PIN, 100), northOf(PIN, 100)],
       heightMeters: 20,
+      heightFromTag: true,
     };
-    const far: Building = {
+    const far: Obstruction = {
+      kind: 'building',
       geometry: [northOf(PIN, 500), northOf(PIN, 500), northOf(PIN, 500)],
       heightMeters: 60,
+      heightFromTag: true,
     };
 
     const profile = buildHorizonProfile(PIN, [close, far], 1000, PIN.lat, PIN.lng);
@@ -88,9 +96,11 @@ describe('buildHorizonProfile', () => {
   });
 
   it('ignores buildings shorter than eye height', () => {
-    const tiny: Building = {
+    const tiny: Obstruction = {
+      kind: 'building',
       geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
       heightMeters: 1.0, // below 1.7 m eye level
+      heightFromTag: true,
     };
 
     const profile = buildHorizonProfile(PIN, [tiny], 1000, PIN.lat, PIN.lng);
@@ -102,8 +112,10 @@ describe('buildHorizonProfile', () => {
       PIN,
       [
         {
+          kind: 'building',
           geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
           heightMeters: 30,
+          heightFromTag: true,
         },
       ],
       1000,
@@ -123,9 +135,11 @@ describe('buildHorizonProfile', () => {
       PIN,
       [
         {
+          kind: 'building',
           // ~50 m north, ~10 m tall → ~10° obstruction at bucket 0.
           geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
           heightMeters: 10,
+          heightFromTag: true,
         },
       ],
       1000,
@@ -155,5 +169,72 @@ describe('buildHorizonProfile', () => {
     // 180° bug this helper exists to prevent.
     expect(obstructionAtSunAzimuth(profile, 0)).toBeCloseTo(0.3, 5);
     expect(obstructionAt(profile, 0)).toBe(0);
+  });
+
+  it('sets insideForest=false when no forest polygons present', () => {
+    const profile = buildHorizonProfile(PIN, [], 1000, PIN.lat, PIN.lng);
+    expect(profile.insideForest).toBe(false);
+  });
+
+  it('sets insideForest=true when pin is inside a forestArea polygon', () => {
+    // A large square forest centred on the pin — pin is definitely inside.
+    const d = 0.005; // ~500 m in lat/lng degrees
+    const forest: Obstruction = {
+      kind: 'tree',
+      geometry: [
+        { lat: PIN.lat - d, lng: PIN.lng - d },
+        { lat: PIN.lat - d, lng: PIN.lng + d },
+        { lat: PIN.lat + d, lng: PIN.lng + d },
+        { lat: PIN.lat + d, lng: PIN.lng - d },
+      ],
+      heightMeters: 18,
+      heightFromTag: false,
+      forestArea: true,
+    };
+
+    const profile = buildHorizonProfile(PIN, [forest], 1000, PIN.lat, PIN.lng);
+    expect(profile.insideForest).toBe(true);
+
+    // Buckets are NOT floored — the edge-sampled boundary values stand.
+    // insideForest is surfaced in the UI for disclosure only.
+    expect(profile.bucketsRad[0]).toBeGreaterThan(0); // boundary edges contributed
+  });
+
+  it('does NOT set insideForest when pin is outside the forest polygon', () => {
+    // Forest placed entirely north of the pin — pin is outside.
+    const forest: Obstruction = {
+      kind: 'tree',
+      geometry: [
+        northOf(PIN, 200),
+        { lat: northOf(PIN, 200).lat, lng: PIN.lng + 0.005 },
+        { lat: northOf(PIN, 400).lat, lng: PIN.lng + 0.005 },
+        northOf(PIN, 400),
+      ],
+      heightMeters: 18,
+      heightFromTag: false,
+      forestArea: true,
+    };
+
+    const profile = buildHorizonProfile(PIN, [forest], 1000, PIN.lat, PIN.lng);
+    expect(profile.insideForest).toBe(false);
+  });
+
+  it('counts buildings and trees separately in the profile', () => {
+    const building: Obstruction = {
+      kind: 'building',
+      geometry: [northOf(PIN, 50), northOf(PIN, 50), northOf(PIN, 50)],
+      heightMeters: 20,
+      heightFromTag: true,
+    };
+    const tree: Obstruction = {
+      kind: 'tree',
+      geometry: [northOf(PIN, 80), northOf(PIN, 80), northOf(PIN, 80)],
+      heightMeters: 15,
+      heightFromTag: false,
+    };
+
+    const profile = buildHorizonProfile(PIN, [building, tree], 1000, PIN.lat, PIN.lng);
+    expect(profile.buildingCount).toBe(1);
+    expect(profile.treeCount).toBe(1);
   });
 });

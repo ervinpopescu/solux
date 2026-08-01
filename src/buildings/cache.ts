@@ -14,10 +14,9 @@
 
 import type { HorizonProfile, LatLng } from '../types';
 
-// Bumped to v2 when the profile builder switched from vertex-only to
-// edge-sampled obstruction: old cached profiles under-report wide buildings, so
-// they must be discarded rather than reused.
-const CACHE_PREFIX = 'solux:horizon:v2:';
+// Bumped to v4: HorizonProfile gained insideForest and the canopy-floor pass.
+// Old v3 profiles missing the field would report "in sun" inside a forest.
+const CACHE_PREFIX = 'solux:horizon:v4:';
 const GRID_DEG = 0.005; // ~500 m at the equator; tighter near poles
 const TTL_MS = 30 * 24 * 60 * 60_000; // 30 days
 
@@ -37,6 +36,8 @@ function cacheKey(p: LatLng, radius: number): string {
 type Serialized = {
   bucketsRad: number[];
   buildingCount: number;
+  treeCount: number;
+  insideForest: boolean;
   radiusMeters: number;
   centerLat: number;
   centerLng: number;
@@ -53,6 +54,8 @@ export function loadProfile(pin: LatLng, radius: number): HorizonProfile | null 
     return {
       bucketsRad: new Float32Array(obj.bucketsRad),
       buildingCount: obj.buildingCount,
+      treeCount: obj.treeCount ?? 0,
+      insideForest: obj.insideForest ?? false,
       radiusMeters: obj.radiusMeters,
       centerLat: obj.centerLat,
       centerLng: obj.centerLng,
@@ -68,6 +71,8 @@ export function saveProfile(pin: LatLng, profile: HorizonProfile): void {
     const ser: Serialized = {
       bucketsRad: Array.from(profile.bucketsRad),
       buildingCount: profile.buildingCount,
+      treeCount: profile.treeCount,
+      insideForest: profile.insideForest,
       radiusMeters: profile.radiusMeters,
       centerLat: profile.centerLat,
       centerLng: profile.centerLng,

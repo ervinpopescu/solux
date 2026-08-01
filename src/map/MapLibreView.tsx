@@ -3,7 +3,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import SunCalc from 'suncalc';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import type { Building, LatLng, SolarTimes } from '../types';
+import type { Obstruction, LatLng, SolarTimes } from '../types';
 import type { SunExposure } from '../solar/exposure';
 import styles from './MapLibreView.module.css';
 import {
@@ -20,10 +20,10 @@ import { prepareShadowBuilding, type ShadowBuilding } from './shadowGeometry';
 // half of the frustum loads at a zoom where the building layer is absent, so
 // queries only ever see near-camera buildings. Overpass gives a clean radius
 // around the pin regardless of camera, and matches the horizon/exposure math.
-function prepareShadowBuildings(pin: LatLng, buildings: Building[]): ShadowBuilding[] {
+function prepareShadowObstructions(pin: LatLng, obstructions: Obstruction[]): ShadowBuilding[] {
   const out: ShadowBuilding[] = [];
-  for (const b of buildings) {
-    const prepared = prepareShadowBuilding(pin, b.geometry, b.heightMeters);
+  for (const o of obstructions) {
+    const prepared = prepareShadowBuilding(pin, o.geometry, o.heightMeters);
     if (prepared) out.push(prepared);
   }
   return out;
@@ -43,16 +43,14 @@ function formatExposure(e: SunExposure): { text: string; variant: string; title:
       return {
         text: '☀ In sun',
         variant: 'lit',
-        title:
-          `Sunlit — ${e.clearanceDeg.toFixed(0)}° above the building horizon ` +
-          `(sun altitude ${e.sunAltitudeDeg.toFixed(0)}°)`,
+        title: `Sunlit — ${e.clearanceDeg.toFixed(0)}° above the obstruction horizon (sun altitude ${e.sunAltitudeDeg.toFixed(0)}°)`,
       };
     case 'shadow':
       return {
         text: '◐ In shadow',
         variant: 'shadow',
         title:
-          `Blocked by buildings — sun sits ${e.deficitDeg.toFixed(0)}° below the ` +
+          `Blocked by nearby obstructions — sun sits ${e.deficitDeg.toFixed(0)}° below the ` +
           `${e.obstructionDeg.toFixed(0)}° obstruction in its direction`,
       };
   }
@@ -90,8 +88,8 @@ export type MapLibreViewProps = {
   timeMinutes?: number;
   /** Live sun/shadow status for the pin, shown as a badge above the marker. */
   exposure?: SunExposure | null;
-  /** Nearby building footprints (Overpass), used to cast ground shadows. */
-  buildings?: Building[] | null;
+  /** Nearby obstruction footprints (Overpass), used to cast ground shadows. */
+  buildings?: Obstruction[] | null;
 };
 
 export default function MapLibreView({
@@ -324,7 +322,7 @@ export default function MapLibreView({
 
   // ── Building shadows: push footprints when the Overpass set changes ───────
   useEffect(() => {
-    const prepared = pin && buildings ? prepareShadowBuildings(pin, buildings) : [];
+    const prepared = pin && buildings ? prepareShadowObstructions(pin, buildings) : [];
     buildingsRef.current = prepared;
     shadowRef.current?.setBuildings(prepared);
   }, [pin, buildings]);

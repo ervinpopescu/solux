@@ -23,6 +23,8 @@ function profileBlockingBearing(bearingDeg: number, altitudeRad: number): Horizo
   return {
     bucketsRad: buckets,
     buildingCount: 1,
+    treeCount: 0,
+    insideForest: false,
     radiusMeters: 1000,
     centerLat: LONDON.lat,
     centerLng: LONDON.lng,

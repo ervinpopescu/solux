@@ -167,7 +167,7 @@ export default function App() {
         dayStartUtc={dayStartUtc}
         timeMinutes={timeMinutes}
         exposure={exposure}
-        buildings={horizon.buildings}
+        buildings={horizon.obstructions}
       />
       <div className={appStyles.topStack}>
         <Controls

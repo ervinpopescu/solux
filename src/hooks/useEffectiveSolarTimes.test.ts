@@ -13,6 +13,8 @@ function flatProfile(): HorizonProfile {
   return {
     bucketsRad: new Float32Array(360).fill(0),
     buildingCount: 0,
+    treeCount: 0,
+    insideForest: false,
     radiusMeters: 1000,
     centerLat: LONDON.lat,
     centerLng: LONDON.lng,
