@@ -328,7 +328,7 @@ function PhaseRow({ item, hoverTitle }: PhaseRowProps) {
   // Secondary info: shown inline when the row is "open" (clicked/tapped),
   // and as the native `title` so hover still works on desktop.
   const detail = item.blocked
-    ? `Sun geometrically at ${item.geomDisplay} — obstructed by nearby buildings`
+    ? `Sun geometrically at ${item.geomDisplay} — obstructed by nearby buildings or trees`
     : item.adjusted
       ? `Geometric: ${item.geomDisplay}`
       : item.missing
@@ -389,9 +389,9 @@ function BuildingsStatus({ horizon }: { horizon: HorizonState }) {
 
   if (horizon.status === 'loading') {
     return (
-      <div className={styles.buildingsStatus} title="Fetching OpenStreetMap building data">
+      <div className={styles.buildingsStatus} title="Fetching OpenStreetMap building and tree data">
         <span className={styles.buildingsSpinner} aria-hidden /> Adjusting sun-visible times for
-        nearby buildings…
+        nearby buildings and trees…
       </div>
     );
   }
@@ -399,17 +399,44 @@ function BuildingsStatus({ horizon }: { horizon: HorizonState }) {
   if (horizon.status === 'error') {
     return (
       <div className={`${styles.buildingsStatus} ${styles.buildingsStatusErr}`}>
-        Could not fetch nearby buildings — showing geometric times only.
+        Could not fetch nearby obstructions — showing geometric times only.
       </div>
     );
   }
 
   // ready
   const p = horizon.profile!;
+
+  // When the pin is inside a forest polygon, show a specific notice instead of
+  // the generic obstruction summary to disclose that the overhead canopy
+  // cover is not modeled.
+  if (p.insideForest) {
+    return (
+      <div className={styles.buildingsStatus}>
+        Pin is inside a forest — overhead canopy cover is not modeled.
+      </div>
+    );
+  }
+
+  // Build a human-readable obstruction summary.
+  // Plural/singular handled inline to avoid a helper that's used once.
+  const bLabel = p.buildingCount === 1 ? '1 building' : `${p.buildingCount} buildings`;
+  const tLabel = p.treeCount === 1 ? '1 tree' : `${p.treeCount} trees`;
+  let obstructionSummary: string;
+  if (p.buildingCount > 0 && p.treeCount > 0) {
+    obstructionSummary = `${bLabel}, ${tLabel}`;
+  } else if (p.buildingCount > 0) {
+    obstructionSummary = bLabel;
+  } else if (p.treeCount > 0) {
+    obstructionSummary = tLabel;
+  } else {
+    obstructionSummary = 'no nearby obstructions';
+  }
+
   return (
     <div className={styles.buildingsStatus}>
-      Adjusted for <strong>{p.buildingCount}</strong> nearby buildings (
-      {(p.radiusMeters / 1000).toFixed(0)} km radius)
+      Adjusted for <strong>{obstructionSummary}</strong> ({(p.radiusMeters / 1000).toFixed(0)} km
+      radius)
       {tallest && (
         <>
           {' '}

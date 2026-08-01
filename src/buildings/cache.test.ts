@@ -11,6 +11,8 @@ function makeProfile(overrides: Partial<HorizonProfile> = {}): HorizonProfile {
   return {
     bucketsRad: new Float32Array(360).fill(0),
     buildingCount: 42,
+    treeCount: 0,
+    insideForest: false,
     radiusMeters: 1000,
     centerLat: 51.505,
     centerLng: -0.13,
@@ -97,20 +99,23 @@ describe('saveProfile / loadProfile', () => {
 
   it('returns null for malformed JSON in localStorage', () => {
     // Construct the cache key manually and inject garbage.
+    // Keys use v3 — the current cache prefix.
     const cell = gridCell(PIN);
-    const key = `solux:horizon:v2:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const key = `solux:horizon:v4:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
     window.localStorage.setItem(key, '{not json');
     expect(loadProfile(PIN, 1000)).toBeNull();
   });
 
   it('returns null when bucketsRad length is wrong', () => {
     const cell = gridCell(PIN);
-    const key = `solux:horizon:v2:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const key = `solux:horizon:v4:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
     window.localStorage.setItem(
       key,
       JSON.stringify({
         bucketsRad: [0, 1, 2], // wrong length
         buildingCount: 1,
+        treeCount: 0,
+        insideForest: false,
         radiusMeters: 1000,
         centerLat: 51.505,
         centerLng: -0.13,

@@ -33,8 +33,32 @@
 // reality (real building skylines are jagged). The effective-time search uses
 // linear interpolation between buckets to soften this.
 
-import type { Building, HorizonProfile, LatLng } from '../types';
+import type { Obstruction, HorizonProfile, LatLng } from '../types';
 import { bearingDeg, distanceMetres } from './geo';
+
+/**
+ * Ray-casting point-in-polygon for a lat/lng ring.
+ *
+ * Casts a ray eastward from `pin` and counts edge crossings. Odd = inside.
+ * Works reliably for the ~1 km polygons we deal with; not suitable for
+ * polygons that wrap the antimeridian (irrelevant at this scale).
+ */
+function pointInPolygon(pin: LatLng, ring: LatLng[]): boolean {
+  const { lat: py, lng: px } = pin;
+  let inside = false;
+  const n = ring.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = ring[i].lng,
+      yi = ring[i].lat;
+    const xj = ring[j].lng,
+      yj = ring[j].lat;
+    // Does the edge [j→i] cross the horizontal ray from (px, py) going east?
+    const crossesLat = yi > py !== yj > py;
+    const xAtCross = ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+    if (crossesLat && px < xAtCross) inside = !inside;
+  }
+  return inside;
+}
 
 /** Standing eye-height of an observer at the pin, in metres. */
 const EYE_HEIGHT_M = 1.7;
@@ -50,17 +74,17 @@ const EDGE_SAMPLE_STEP_DEG = 0.75;
 const MAX_EDGE_SAMPLES = 256;
 
 /**
- * Build a 360-bucket obstruction profile from a list of buildings.
+ * Build a 360-bucket obstruction profile from a list of obstructions.
  *
- * @param pin       The observer location.
- * @param buildings Buildings within the chosen radius.
- * @param radiusM   Radius the buildings were fetched from, recorded for UI.
- * @param centerLat Centre lat used for caching (may be grid-rounded).
- * @param centerLng Centre lng used for caching.
+ * @param pin          The observer location.
+ * @param obstructions Obstructions within the chosen radius.
+ * @param radiusM      Radius the obstructions were fetched from, recorded for UI.
+ * @param centerLat    Centre lat used for caching (may be grid-rounded).
+ * @param centerLng    Centre lng used for caching.
  */
 export function buildHorizonProfile(
   pin: LatLng,
-  buildings: Building[],
+  obstructions: Obstruction[],
   radiusM: number,
   centerLat: number,
   centerLng: number,
@@ -78,14 +102,21 @@ export function buildHorizonProfile(
     if (altRad > buckets[i]) buckets[i] = altRad;
   };
 
-  for (const b of buildings) {
+  let buildingCount = 0;
+  let treeCount = 0;
+  let insideForest = false;
+
+  for (const o of obstructions) {
+    if (o.kind === 'building') buildingCount++;
+    else treeCount++;
+
     // Effective height = how far the roof rises above eye level. Treat any
-    // building shorter than eye level as "no obstruction" — we'd just see
+    // obstruction shorter than eye level as "no obstruction" — we'd just see
     // over it.
-    const dh = b.heightMeters - EYE_HEIGHT_M;
+    const dh = o.heightMeters - EYE_HEIGHT_M;
     if (dh <= 0) continue;
 
-    const ring = b.geometry;
+    const ring = o.geometry;
     const n = ring.length;
     if (n === 0) continue;
 
@@ -110,11 +141,22 @@ export function buildHorizonProfile(
         record({ lat: a.lat + (c.lat - a.lat) * t, lng: a.lng + (c.lng - a.lng) * t }, dh);
       }
     }
+
+    // Detect pin-inside-forest for UI disclosure. We do NOT modify the buckets
+    // here: OSM forest polygons include open paths and clearings, so a blanket
+    // canopy-floor would incorrectly shadow a pin on a path inside the polygon
+    // boundary. The `insideForest` flag surfaces in BuildingsStatus so the user
+    // knows the overhead canopy is not modeled, without producing false results.
+    if (o.forestArea && pointInPolygon(pin, ring)) {
+      insideForest = true;
+    }
   }
 
   return {
     bucketsRad: buckets,
-    buildingCount: buildings.length,
+    buildingCount,
+    treeCount,
+    insideForest,
     radiusMeters: radiusM,
     centerLat,
     centerLng,

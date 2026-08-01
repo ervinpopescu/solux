@@ -77,15 +77,23 @@ export type Prefs = {
 };
 
 // ==============================================================================
-// Building-aware horizon (Overpass-driven)
+// Building/tree-aware horizon (Overpass-driven)
 // ==============================================================================
 
-/** A single building footprint with a derived height. */
-export type Building = {
-  /** Closed polygon (first vertex repeated optional). Lat/lng of OSM nodes. */
+/** A single building or tree footprint used as a solar obstruction. */
+export type Obstruction = {
+  kind: 'building' | 'tree';
+  /** Closed polygon. Synthesized octagon for single-tree nodes. */
   geometry: LatLng[];
   /** Effective height in metres above ground. Derived from OSM height/levels tags. */
   heightMeters: number;
+  /** True when height came from an OSM tag or species lookup; false for bare fallback defaults. */
+  heightFromTag: boolean;
+  /**
+   * True for `natural=wood` / `landuse=forest` area ways. Used by the horizon
+   * builder to detect when the pin is inside the polygon for UI disclosure.
+   */
+  forestArea?: boolean;
 };
 
 /**
@@ -99,6 +107,14 @@ export type HorizonProfile = {
   bucketsRad: Float32Array;
   /** How many buildings contributed (for UI). */
   buildingCount: number;
+  /** How many trees contributed (for UI). */
+  treeCount: number;
+  /**
+   * True when the pin falls inside a `natural=wood` / `landuse=forest` polygon.
+   * Surfaced in the UI to disclose that overhead canopy cover is not modeled,
+   * since edge-only sampling leaves the immediate canopy invisible.
+   */
+  insideForest: boolean;
   /** Radius used when fetching, in metres. */
   radiusMeters: number;
   /** Centre of the fetched area (grid-rounded for caching purposes). */
