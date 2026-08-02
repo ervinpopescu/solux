@@ -2,7 +2,7 @@
 // useHorizon — async pipeline from a pin to an obstruction-aware horizon profile
 // ==============================================================================
 //
-// State machine:
+// State transitions:
 //
 //      pin = null          → 'idle'
 //      pin set, cache hit  → 'ready' (profile from localStorage) → obstructions fill in
@@ -20,7 +20,7 @@
 // pitched 3D view (far tiles load at a zoom without the building layer). A
 // session-scoped in-memory memo keeps repeat pins in the same area instant.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Obstruction, HorizonProfile, LatLng } from '../types';
 import { loadProfile, saveProfile, gridCell } from '../buildings/cache';
 import { fetchObstructions } from '../buildings/overpass';
@@ -38,6 +38,24 @@ export type HorizonState = {
   error: string | null;
 };
 
+type HorizonSnapshot = {
+  requestKey: string | null;
+  pin: LatLng | null;
+  state: HorizonState;
+  cachedProfile: HorizonProfile | null;
+  memoedObstructions: Obstruction[] | null;
+  operation: 'none' | 'build' | 'fetch';
+};
+
+type RequestIncarnation = {
+  active: boolean;
+};
+
+type AsyncHorizonState = {
+  snapshot: HorizonSnapshot;
+  state: HorizonState;
+};
+
 // Session-scoped obstruction cache (grid cell + radius → footprints). Obstructions
 // can be megabytes, so we keep them in memory only rather than localStorage; a cold
 // reload refetches, which is acceptable for data that changes on the order of months.
@@ -48,88 +66,121 @@ function memoKey(pin: LatLng, radius: number): string {
   return `${c.lat.toFixed(3)},${c.lng.toFixed(3)},${radius}`;
 }
 
+const IDLE_STATE: HorizonState = {
+  status: 'idle',
+  profile: null,
+  obstructions: null,
+  error: null,
+};
+
 export function useHorizon(pin: LatLng | null, radius: number = DEFAULT_RADIUS_M): HorizonState {
-  const [state, setState] = useState<HorizonState>({
-    status: 'idle',
-    profile: null,
-    obstructions: null,
-    error: null,
-  });
+  const lat = pin?.lat;
+  const lng = pin?.lng;
+  const [asyncState, setAsyncState] = useState<AsyncHorizonState | null>(null);
 
-  // Track the most recently requested pin so a late-arriving fetch for an
-  // older pin doesn't overwrite a newer result.
-  const reqRef = useRef(0);
-
-  useEffect(() => {
-    if (!pin) {
-      setState({ status: 'idle', profile: null, obstructions: null, error: null });
-      return;
+  const snapshot = useMemo<HorizonSnapshot>(() => {
+    if (lat === undefined || lng === undefined) {
+      return {
+        requestKey: null,
+        pin: null,
+        state: IDLE_STATE,
+        cachedProfile: null,
+        memoedObstructions: null,
+        operation: 'none',
+      };
     }
 
-    const myReq = ++reqRef.current;
-    const cachedProfile = loadProfile(pin, radius);
-    const memoedObstructions = obstructionMemo.get(memoKey(pin, radius));
+    const currentPin = { lat, lng };
+    const requestKey = JSON.stringify([lat, lng, radius]);
+    const cachedProfile = loadProfile(currentPin, radius);
+    const memoedObstructions = obstructionMemo.get(memoKey(currentPin, radius)) ?? null;
 
-    // Fast path: both profile and obstructions already available in memory/cache.
-    if (cachedProfile && memoedObstructions) {
-      setState({
-        status: 'ready',
+    return {
+      requestKey,
+      pin: currentPin,
+      state: {
+        status: cachedProfile ? 'ready' : 'loading',
         profile: cachedProfile,
         obstructions: memoedObstructions,
         error: null,
-      });
-      return;
-    }
+      },
+      cachedProfile,
+      memoedObstructions,
+      operation: memoedObstructions ? (cachedProfile ? 'none' : 'build') : 'fetch',
+    };
+    // Pin identity is intentional: repinning the same coordinates retries a failed request.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin, lat, lng, radius]);
 
-    // Show the cached profile immediately if we have it; obstructions still load.
-    setState({
-      status: cachedProfile ? 'ready' : 'loading',
-      profile: cachedProfile,
-      obstructions: memoedObstructions ?? null,
-      error: null,
-    });
+  useEffect(() => {
+    if (!snapshot.pin || !snapshot.requestKey || snapshot.operation === 'none') return;
 
-    // If obstructions are memoed but the profile isn't cached, rebuild it locally
-    // without a network round-trip.
-    if (memoedObstructions && !cachedProfile) {
-      const center = gridCell(pin);
-      const profile = buildHorizonProfile(pin, memoedObstructions, radius, center.lat, center.lng);
-      saveProfile(pin, profile);
-      setState({ status: 'ready', profile, obstructions: memoedObstructions, error: null });
-      return;
-    }
+    const currentPin = snapshot.pin;
+    const incarnation: RequestIncarnation = { active: true };
 
-    // Otherwise fetch footprints from Overpass, then derive/keep the profile.
-    const ctrl = new AbortController();
-    (async () => {
-      try {
-        const obstructions = await fetchObstructions(pin, radius, ctrl.signal);
-        if (myReq !== reqRef.current) return; // pin moved; discard stale
-        obstructionMemo.set(memoKey(pin, radius), obstructions);
-
-        const center = gridCell(pin);
-        const profile =
-          cachedProfile ?? buildHorizonProfile(pin, obstructions, radius, center.lat, center.lng);
-        if (!cachedProfile) saveProfile(pin, profile);
-
-        if (myReq !== reqRef.current) return;
-        setState({ status: 'ready', profile, obstructions, error: null });
-      } catch (err) {
-        if (myReq !== reqRef.current) return;
-        if ((err as { name?: string }).name === 'AbortError') return;
-        setState({
-          status: 'error',
-          profile: cachedProfile,
-          obstructions: null,
-          error: err instanceof Error ? err.message : 'Unknown error',
+    if (snapshot.operation === 'build') {
+      void Promise.resolve().then(() => {
+        if (!incarnation.active || !snapshot.memoedObstructions) return;
+        const center = gridCell(currentPin);
+        const profile = buildHorizonProfile(
+          currentPin,
+          snapshot.memoedObstructions,
+          radius,
+          center.lat,
+          center.lng,
+        );
+        saveProfile(currentPin, profile);
+        setAsyncState({
+          snapshot,
+          state: {
+            status: 'ready',
+            profile,
+            obstructions: snapshot.memoedObstructions,
+            error: null,
+          },
         });
-      }
-    })();
+      });
+      return () => {
+        incarnation.active = false;
+      };
+    }
+
+    const ctrl = new AbortController();
+    void fetchObstructions(currentPin, radius, ctrl.signal).then(
+      (obstructions) => {
+        if (ctrl.signal.aborted) return;
+        obstructionMemo.set(memoKey(currentPin, radius), obstructions);
+
+        const center = gridCell(currentPin);
+        const profile =
+          snapshot.cachedProfile ??
+          buildHorizonProfile(currentPin, obstructions, radius, center.lat, center.lng);
+        if (!snapshot.cachedProfile) saveProfile(currentPin, profile);
+
+        setAsyncState({
+          snapshot,
+          state: { status: 'ready', profile, obstructions, error: null },
+        });
+      },
+      (err: unknown) => {
+        if (ctrl.signal.aborted || (err as { name?: string }).name === 'AbortError') return;
+        setAsyncState({
+          snapshot,
+          state: {
+            status: 'error',
+            profile: snapshot.cachedProfile,
+            obstructions: null,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          },
+        });
+      },
+    );
 
     return () => {
+      incarnation.active = false;
       ctrl.abort();
     };
-  }, [pin?.lat, pin?.lng, pin, radius]);
+  }, [snapshot, radius]);
 
-  return state;
+  return asyncState?.snapshot === snapshot ? asyncState.state : snapshot.state;
 }

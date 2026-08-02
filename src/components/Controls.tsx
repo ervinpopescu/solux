@@ -36,7 +36,7 @@ type ControlsProps = {
   timeMinutes: number;
   /** Called when the user drags the slider. */
   onTimeMinutesChange: (minutes: number) => void;
-  /** The "live" time (from useTimeOfDay). Used to show the live indicator dot. */
+  /** Current time in the pin's zone. Used to show the live indicator dot. */
   liveMinutes: number;
 };
 

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { vi, describe, it, expect, afterEach } from 'vitest';
-import { useTimeOfDay } from './useTimeOfDay';
+import { useTimeOfDay, useTimeOfDayReading } from './useTimeOfDay';
 
 afterEach(() => vi.useRealTimers());
 
@@ -16,12 +16,13 @@ describe('useTimeOfDay', () => {
   it('increments after 60 seconds', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-06-21T14:30:00Z'));
-    const { result } = renderHook(() => useTimeOfDay('Europe/London'));
-    expect(result.current).toBe(930);
+    const { result } = renderHook(() => useTimeOfDayReading('Europe/London'));
+    expect(result.current.minutes).toBe(930);
+    const initialMinuteKey = result.current.minuteKey;
     act(() => {
       vi.advanceTimersByTime(60_000);
     });
-    expect(result.current).toBe(931);
+    expect(result.current).toEqual({ minutes: 931, minuteKey: initialMinuteKey + 1 });
   });
 
   it('recalculates immediately when zone changes', () => {

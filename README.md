@@ -66,7 +66,7 @@ npm run serve:ngrok
 Open the URL printed by Vite, click anywhere on the map.
 
 ```sh
-npm test          # run unit tests (88 tests across 11 files)
+npm test          # run unit tests
 npm run build     # production bundle
 ```
 

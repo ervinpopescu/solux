@@ -41,6 +41,8 @@ src/
     useHorizon.ts       async Overpass pipeline: idle → loading → ready | error
     useEffectiveSolarTimes.ts  memoised applyHorizonToSolarTimes
     useMediaQuery.ts    CSS media query subscription
+    useTimeOfDay.ts     current minute in a requested IANA timezone
+    useLiveTimeSelection.ts  slider override reset by clock and zone changes
   components/
     map/
       MapLibreView.tsx    MapLibre GL JS map, click-to-pin, popup, 3D buildings

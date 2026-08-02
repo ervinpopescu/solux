@@ -44,16 +44,6 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs['recommended-latest'].rules,
       ...reactRefresh.configs.vite.rules,
-      // react-hooks 7 promotes the React-Compiler-oriented
-      // `set-state-in-effect` rule to an error. This codebase intentionally
-      // uses setState inside effects to re-synchronise state when a dependency
-      // changes — e.g. re-reading matchMedia on query change (useMediaQuery),
-      // re-clocking on zone change (useTimeOfDay), resetting to idle when the
-      // pin clears (useHorizon), and snapping the slider back on each tick
-      // (App). These are correct external-sync patterns, not bugs, so we keep
-      // the rule advisory (warn) — matching how `exhaustive-deps` ships —
-      // rather than failing CI or restructuring correct code.
-      'react-hooks/set-state-in-effect': 'warn',
     },
   },
 
