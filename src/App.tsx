@@ -19,7 +19,7 @@
 // today in the browser's zone — this affects only the initial value of the
 // date input until the user clicks the map.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { startOfDay } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import Controls from './components/Controls';
@@ -36,7 +36,8 @@ import { useMediaQuery } from './hooks/useMediaQuery';
 import { usePrefs } from './hooks/usePrefs';
 import { useSolarData } from './hooks/useSolarData';
 import { useTimezone } from './hooks/useTimezone';
-import { useTimeOfDay } from './hooks/useTimeOfDay';
+import { useLiveTimeSelection } from './hooks/useLiveTimeSelection';
+import { useTimeOfDayReading } from './hooks/useTimeOfDay';
 import { isoDateToNoonUtc } from './solar/calc';
 import { sunExposureAt, type SunExposure } from './solar/exposure';
 import { browserZone, isoDateInZone } from './util/zoneDate';
@@ -57,15 +58,12 @@ export default function App() {
 
   // Live minutes in the pin's timezone; used as default for timeMinutes
   // and to show the live indicator dot on the slider.
-  const liveMinutes = useTimeOfDay(pin ? zone : browserZone());
+  const liveTime = useTimeOfDayReading(pin ? zone : browserZone());
+  const liveMinutes = liveTime.minutes;
 
-  // timeMinutes is initialised from liveMinutes and is kept in sync with the
-  // 60-second tick via useEffect. Slider drags override it temporarily; the
-  // next tick snaps it back to the real current time.
-  const [timeMinutes, setTimeMinutes] = useState(liveMinutes);
-  useEffect(() => {
-    setTimeMinutes(liveMinutes);
-  }, [liveMinutes]);
+  // Slider drags override the live time temporarily; the next clock tick
+  // snaps it back to the real current time.
+  const [timeMinutes, setTimeMinutes] = useLiveTimeSelection(liveTime);
 
   // Resolve the effective date the rest of the app uses. Persisted empty
   // string → "today in the zone we currently know about". This is split
@@ -89,10 +87,12 @@ export default function App() {
   // When the user has never set a date, mirror the computed "today" into
   // prefs so the date <input> reflects it. We deliberately only do this once
   // per session: subsequent zone changes don't overwrite an explicit choice.
+  const initialDate = useRef({ date, effectiveDate });
   useEffect(() => {
-    if (!date && effectiveDate) setDate(effectiveDate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!initialDate.current.date && initialDate.current.effectiveDate) {
+      setDate(initialDate.current.effectiveDate);
+    }
+  }, [setDate]);
 
   const solarTimes = useSolarData(pin, effectiveDate);
   const horizon = useHorizon(pin);
