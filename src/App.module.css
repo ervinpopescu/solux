@@ -23,7 +23,8 @@
     top: 0;
     left: 0;
     right: 0;
-    padding: 8px;
+    padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) 8px
+      calc(8px + env(safe-area-inset-left));
     z-index: 1000;
     pointer-events: none;
   }

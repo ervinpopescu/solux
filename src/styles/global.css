@@ -101,6 +101,6 @@ select {
 @media (max-width: 640px) {
   .maplibregl-ctrl-top-left,
   .maplibregl-ctrl-top-right {
-    top: 108px;
+    top: calc(108px + env(safe-area-inset-top));
   }
 }

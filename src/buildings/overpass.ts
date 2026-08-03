@@ -9,7 +9,7 @@
 // Why Overpass and not vector tiles? Overpass returns raw OSM tags, which
 // is what we need to derive heights — vector tile providers usually
 // generalize/extrude buildings and discard the original tags. Overpass is
-// also free and CORS-enabled, which keeps Solux a pure SPA.
+// also free and CORS-enabled, which keeps Solux a pure frontend app.
 //
 // Limitations we accept on purpose:
 //   - Many OSM buildings lack any height info. We default conservatively

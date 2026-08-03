@@ -20,14 +20,14 @@ A map-driven golden hour calculator for photographers. Click anywhere on the map
 - **3D buildings** — OpenFreeMap vector tiles extrude nearby buildings; tilt and rotate the map freely
 - **Sun path arc** — a coloured 3D arc floats above the pin showing the day's path; segments are tinted by phase (deep blue → blue hour → amber golden hour → white midday)
 - **Time slider** — drag to any time of day to preview the sun's position; an amber dot shows when it's tracking the real current time (updates every 60 s)
-- **Offline timezone lookup** — no network call for zone resolution; `tz-lookup` embeds a compact polygon table
+- **Offline support** — installable as a Progressive Web App (PWA); timezone lookup uses an embedded offline polygon table, and core map assets are cached
 - **Persistence** — pin, date, display mode, and building profiles survive page reload via `localStorage`
 
 ## Stack
 
 | Concern | Library |
 |---|---|
-| Build | Vite 5 + TypeScript |
+| Build | Vite 5 + TypeScript + Vite PWA |
 | UI | React 18 |
 | Map | MapLibre GL JS + OpenFreeMap (vector tiles, no API key) |
 | 3D / sun arc | Three.js (custom WebGL layer inside MapLibre) |
