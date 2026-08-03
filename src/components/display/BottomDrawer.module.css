@@ -20,7 +20,7 @@
 .drawer.collapsed {
   /* Translate down by everything except the handle row so we get a tappable
    * peek strip at the bottom of the viewport. */
-  transform: translateY(calc(100% - 56px));
+  transform: translateY(calc(100% - 56px - env(safe-area-inset-bottom)));
 }
 
 .drawer.compact {
@@ -49,6 +49,10 @@
   font: inherit;
 }
 
+.drawer.collapsed .handleRow {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
 .handleRow:hover .handle,
 .handleRow:focus-visible .handle {
   background: var(--accent);
@@ -70,10 +74,10 @@
 }
 
 .body {
-  padding: 4px 20px 20px;
+  padding: 4px 20px calc(20px + env(safe-area-inset-bottom));
   overflow: auto;
 }
 
 .compact .body {
-  padding: 4px 14px 16px;
+  padding: 4px 14px calc(16px + env(safe-area-inset-bottom));
 }

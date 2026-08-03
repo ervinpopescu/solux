@@ -2,7 +2,7 @@
 
 ## Project overview
 
-Solux is a pure-frontend SPA (Vite + React 18 + TypeScript) that calculates
+Solux is a pure-frontend Progressive Web App (Vite + React 18 + TypeScript) that calculates
 solar phase times for any location on an interactive map. MapLibre GL JS
 renders the vector-tile map with 3D buildings; Three.js provides a custom
 WebGL layer for the 3D sun path arc. No backend, no accounts, no build-time
