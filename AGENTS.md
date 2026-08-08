@@ -29,9 +29,9 @@ src/
   storage/prefs.ts      typed localStorage adapter
   util/zoneDate.ts      date-fns-tz helpers (isoDateInZone, formatTimeInZone, …)
   buildings/
-    overpass.ts         Overpass QL fetch → Building[]
+    overpass.ts         Overpass QL fetch → Obstruction[]
     geo.ts              haversine distance + bearing
-    horizon.ts          Building[] → HorizonProfile (Float32Array, 360 buckets)
+    horizon.ts          Obstruction[] → HorizonProfile (Float32Array, 360 buckets)
     effective.ts        HorizonProfile + SolarTimes → visibility-clipped SolarTimes
     cache.ts            localStorage cache for HorizonProfile (~500 m grid, 30-day TTL)
   hooks/
@@ -43,14 +43,21 @@ src/
     useMediaQuery.ts    CSS media query subscription
     useTimeOfDay.ts     current minute in a requested IANA timezone
     useLiveTimeSelection.ts  slider override reset by clock and zone changes
+  map/
+    MapLibreView.tsx    MapLibre GL JS map, click-to-pin, popup, 3D buildings & ground shadows
+    MapLibreView.module.css
+    arcGeometry.ts      Pure functions: sun→XYZ, phase classification, arc samples
+    arcGeometry.test.ts
+    shadowGeometry.ts   Shadow footprint & static extrusion mesh geometry
+    shadowPreselection.ts Bounded nearest-caster selection heap
+    shadowRenderBudget.ts Shadow caster selection & vertex/byte budgeting
+    tileShadowBuildings.ts OpenMapTiles vector-tile building shadow caster conversion
+    remoteShadowObstructions.ts Overpass obstruction shadow caster conversion
+    tileShadowRefresh.ts Camera move and tile load refresh gate
+    layers/
+      sunPathLayer.ts   Three.js CustomLayerInterface: arc tube + sphere
+      shadowLayer.ts    WebGL CustomLayerInterface: stencil ground shadows
   components/
-    map/
-      MapLibreView.tsx    MapLibre GL JS map, click-to-pin, popup, 3D buildings
-      MapLibreView.module.css
-      arcGeometry.ts      Pure functions: sun→XYZ, phase classification, arc samples
-      arcGeometry.test.ts
-      layers/
-        sunPathLayer.ts   Three.js CustomLayerInterface: arc tube + sphere
     Controls.tsx        date picker + presets + view-mode selector
     SolarInfo.tsx       phase list with TZ disclosure + building-adjusted values
     display/            four layout wrappers (FloatingCard, BottomDrawer,
@@ -118,7 +125,7 @@ metres to dimensionless mercator units.
 
 **localStorage keys**
 - `solux:prefs:v1` — user preferences (pin, date, displayMode)
-- `solux:horizon:v1:<lat>,<lng>,<radius>` — cached HorizonProfile
+- `solux:horizon:v5:<lat>,<lng>,<radius>` — cached HorizonProfile
 
 Bump the version suffix if the stored shape changes in a breaking way.
 
