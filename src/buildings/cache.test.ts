@@ -99,9 +99,9 @@ describe('saveProfile / loadProfile', () => {
 
   it('returns null for malformed JSON in localStorage', () => {
     // Construct the cache key manually and inject garbage.
-    // Keys use v3 — the current cache prefix.
+    // Keys use v5, the current query-semantics cache prefix.
     const cell = gridCell(PIN);
-    const key = `solux:horizon:v4:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const key = `solux:horizon:v5:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
     window.localStorage.setItem(key, '{not json');
     expect(loadProfile(PIN, 1000)).toBeNull();
   });
