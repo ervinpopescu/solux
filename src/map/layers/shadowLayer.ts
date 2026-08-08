@@ -26,7 +26,7 @@
 import maplibregl, { type CustomLayerInterface, type CustomRenderMethodInput } from 'maplibre-gl';
 import type { LatLng } from '../../types';
 import {
-  buildShadowMesh,
+  buildStaticShadowMesh,
   sunShadowOffsetPerMetre,
   nightFactorForAltitude,
   shadowOpacityForAltitude,
@@ -40,7 +40,7 @@ export interface ShadowLayerHandle {
   customLayer: CustomLayerInterface;
   /** Replace the set of footprints casting shadows (e.g. after new tiles load). */
   setBuildings: (buildings: ShadowBuilding[]) => void;
-  /** Update the sun direction; recomputes shadow lengths. Below-horizon hides them. */
+  /** Update the sun direction; sets extrusion offset uniforms. Below-horizon hides them. */
   setSun: (azimuthRad: number, altitudeRad: number) => void;
 }
 
@@ -51,7 +51,12 @@ export interface ShadowLayerHandle {
 const MASK_VERT = `#version 300 es
   in vec3 a_pos;
   uniform mat4 u_mvp;
-  void main() { gl_Position = u_mvp * vec4(a_pos, 1.0); }
+  uniform vec2 u_offset; // (oxPerM, ozPerM)
+  void main() {
+    // a_pos is (x, h, z), where h is the extrusion factor.
+    vec3 finalPos = vec3(a_pos.x + u_offset.x * a_pos.y, 0.0, a_pos.z + u_offset.y * a_pos.y);
+    gl_Position = u_mvp * vec4(finalPos, 1.0);
+  }
 `;
 const MASK_FRAG = `#version 300 es
   precision mediump float;
@@ -114,7 +119,10 @@ function linkProgram(gl: WebGL2RenderingContext, vsrc: string, fsrc: string): We
 
 // ── Factory ──────────────────────────────────────────────────────────────────
 
-export function createShadowLayer(pin: LatLng): ShadowLayerHandle {
+export function createShadowLayer(
+  pin: LatLng,
+  onShadowDraw?: (vertexCount: number) => void,
+): ShadowLayerHandle {
   const origin = maplibregl.MercatorCoordinate.fromLngLat({ lng: pin.lng, lat: pin.lat }, 0);
   const S = origin.meterInMercatorCoordinateUnits();
   const oz = origin.z ?? 0;
@@ -143,17 +151,17 @@ export function createShadowLayer(pin: LatLng): ShadowLayerHandle {
   let aPos = -1;
   let aClip = -1;
   let uMvp: WebGLUniformLocation | null = null;
+  let uOffset: WebGLUniformLocation | null = null;
   let uColor: WebGLUniformLocation | null = null;
   let storedMap: maplibregl.Map | undefined;
 
-  // Recompute the mesh from the current buildings + offset and, if the GL
-  // buffer exists, upload it. Cheap enough to run on every debounced update.
+  // Recompute the mesh only when buildings change.
   function rebuild() {
-    mesh = offset && buildings.length ? buildShadowMesh(buildings, offset) : new Float32Array(0);
+    mesh = buildings.length ? buildStaticShadowMesh(buildings) : new Float32Array(0);
     vertexCount = mesh.length / 3;
     if (gl && meshBuf) {
       gl.bindBuffer(gl.ARRAY_BUFFER, meshBuf);
-      gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.DYNAMIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.STATIC_DRAW);
     }
     storedMap?.triggerRepaint();
   }
@@ -171,12 +179,13 @@ export function createShadowLayer(pin: LatLng): ShadowLayerHandle {
       washProg = linkProgram(gl, WASH_VERT, WASH_FRAG);
       aPos = gl.getAttribLocation(maskProg, 'a_pos');
       uMvp = gl.getUniformLocation(maskProg, 'u_mvp');
+      uOffset = gl.getUniformLocation(maskProg, 'u_offset');
       aClip = gl.getAttribLocation(washProg, 'a_clip');
       uColor = gl.getUniformLocation(washProg, 'u_color');
 
       meshBuf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, meshBuf);
-      gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.DYNAMIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.STATIC_DRAW);
 
       fsBuf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, fsBuf);
@@ -214,10 +223,12 @@ export function createShadowLayer(pin: LatLng): ShadowLayerHandle {
 
         gl.useProgram(maskProg);
         gl.uniformMatrix4fv(uMvp, false, new Float32Array(mvp));
+        gl.uniform2f(uOffset, offset?.[0] ?? 0, offset?.[1] ?? 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, meshBuf);
         gl.enableVertexAttribArray(aPos);
         gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
         gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
+        onShadowDraw?.(vertexCount);
 
         // Pass 2: wash — one translucent tint over the stencilled pixels.
         gl.colorMask(true, true, true, true);
@@ -286,7 +297,7 @@ export function createShadowLayer(pin: LatLng): ShadowLayerHandle {
       offset = sunShadowOffsetPerMetre(azimuthRad, altitudeRad);
       shadowAlpha = shadowOpacityForAltitude(altitudeRad);
       nightAlpha = nightFactorForAltitude(altitudeRad) * NIGHT_MAX_ALPHA;
-      rebuild(); // recomputes the mesh and triggers a repaint for both effects
+      storedMap?.triggerRepaint(); // mesh is static, just repaint with new uniforms
     },
   };
 }
