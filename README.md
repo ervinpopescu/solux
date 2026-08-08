@@ -12,7 +12,7 @@ A map-driven golden hour calculator for photographers. Click anywhere on the map
   - Solar noon
   - Late afternoon · Soft light · Golden hour · Sunset
   - Blue hour (PM) · Civil / nautical / astronomical dusk
-- **Building-aware times** — fetches OSM building footprints within 1 km via Overpass, constructs a 360° obstruction profile, and replaces every sun-direct phase with the moment it actually clears the surrounding skyline; adjusted values are tinted and tappable to reveal the geometric baseline
+- **Obstruction-aware times** — fetches OSM building footprints (within 1 km) and tree features (within 400 m) via Overpass, constructs a 360° obstruction profile, and replaces every sun-direct phase with the moment it actually clears the surrounding skyline; adjusted values are tinted and tappable to reveal the geometric baseline
 - **Explicit timezone disclosure** — the pinned location's IANA zone and UTC offset are always shown; a secondary note appears when your browser is in a different zone
 - **Date picker + presets** — Today / Tomorrow / +7 days computed in the pin's timezone
 - **Four display modes** — floating card, bottom drawer, side panel, pin popup; user-selectable and persisted
@@ -72,8 +72,8 @@ npm run build     # production bundle
 
 ## How the building-horizon works
 
-1. On each new pin, `useHorizon` POSTs an Overpass QL query for `way["building"]` within 1 km
-2. Each building's footprint vertices are projected from the pin's eye position (1.7 m) to produce an azimuth + altitude angle
+1. On each new pin, `useHorizon` POSTs an Overpass QL query for building ways within 1 km, and tree nodes and forest/wood ways within 400 m
+2. Each obstruction's footprint vertices are projected from the pin's eye position (1.7 m) to produce an azimuth + altitude angle
 3. A 360-element `Float32Array` records the maximum obstruction altitude per degree
 4. The profile is persisted in `localStorage` keyed by a ~500 m grid cell (30-day TTL) so revisiting a nearby spot is instant
 5. `applyHorizonToSolarTimes` clips every sun-direct phase window to the sub-interval where the sun's altitude exceeds the profile at its instantaneous azimuth; fully-blocked phases return `null`
@@ -82,6 +82,6 @@ Twilight and blue-hour times are **not** adjusted — they're atmospheric scatte
 
 ## Caveats
 
-- Only OSM-tagged buildings are considered; trees, billboards, and untagged structures are ignored
+- Only OSM-tagged buildings, trees, and forest/wood areas are considered; billboards and untagged non-tree structures are ignored
 - Buildings without `height` or `building:levels` tags are skipped rather than defaulted (better to under-report than invent tall buildings)
 - Terrain / hills are not accounted for
