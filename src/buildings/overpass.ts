@@ -24,7 +24,11 @@
 
 import type { Obstruction, LatLng } from '../types';
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+];
 
 /** Metres per building level when only `building:levels` is set. */
 const METRES_PER_LEVEL = 3.5;
@@ -39,10 +43,25 @@ function overpassError(message: string, status?: number): OverpassError {
 }
 
 /**
+ * Build the latency-sensitive obstruction query. Buildings keep the full
+ * horizon radius, while individual trees and wooded/forest area polygons are
+ * bounded to 400 m.
+ */
+export function buildObstructionQuery(pin: LatLng, radius: number): string {
+  const treeRadius = Math.min(radius, 400);
+  return `[out:json][timeout:8];
+(
+  way["building"](around:${radius},${pin.lat},${pin.lng});
+  node["natural"="tree"](around:${treeRadius},${pin.lat},${pin.lng});
+  way["natural"="wood"](around:${treeRadius},${pin.lat},${pin.lng});
+  way["landuse"="forest"](around:${treeRadius},${pin.lat},${pin.lng});
+);
+out geom;`;
+}
+
+/**
  * Fetch obstructions within `radius` metres of `pin` from Overpass.
- *
- * Fetches buildings, individual tree nodes, and wooded-area ways in a single
- * 4-clause query.
+ * Attempts primary and fallback mirror endpoints if rate-limited or timed out.
  *
  * Throws an `OverpassError` on network/HTTP failure. The caller should treat
  * this as non-fatal: the rest of the app continues to render geometric times.
@@ -52,28 +71,45 @@ export async function fetchObstructions(
   radius: number,
   signal?: AbortSignal,
 ): Promise<Obstruction[]> {
-  const query = `[out:json][timeout:25];
-(
-  way["building"](around:${radius},${pin.lat},${pin.lng});
-  node["natural"="tree"](around:${radius},${pin.lat},${pin.lng});
-  way["natural"="wood"](around:${radius},${pin.lat},${pin.lng});
-  way["landuse"="forest"](around:${radius},${pin.lat},${pin.lng});
-);
-out geom;`;
+  const query = buildObstructionQuery(pin, radius);
+  let lastError: Error | null = null;
 
-  const res = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    body: 'data=' + encodeURIComponent(query),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    signal,
-  });
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    if (signal?.aborted) throw overpassError('Aborted');
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        signal,
+      });
 
-  if (!res.ok) {
-    throw overpassError(`Overpass HTTP ${res.status}`, res.status);
+      if (!res.ok) {
+        lastError = overpassError(`Overpass HTTP ${res.status}`, res.status);
+        continue;
+      }
+
+      let data: unknown;
+      if (typeof res.text === 'function') {
+        const text = await res.text();
+        if (!text.trim().startsWith('{')) {
+          lastError = overpassError('Invalid JSON response from Overpass');
+          continue;
+        }
+        data = JSON.parse(text);
+      } else {
+        data = await res.json();
+      }
+      return parseObstructions(data);
+    } catch (err) {
+      if (signal?.aborted || (err as { name?: string }).name === 'AbortError') {
+        throw err;
+      }
+      lastError = err instanceof Error ? err : overpassError(String(err));
+    }
   }
 
-  const data: unknown = await res.json();
-  return parseObstructions(data);
+  throw lastError ?? overpassError('All Overpass endpoints failed');
 }
 
 // ==============================================================================
