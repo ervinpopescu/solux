@@ -3,7 +3,7 @@ import {
   lngLatToLocalMetres,
   sunShadowOffsetPerMetre,
   prepareShadowBuilding,
-  buildShadowMesh,
+  buildStaticShadowMesh,
   nightFactorForAltitude,
   shadowOpacityForAltitude,
   SHADOW_FADE_START_RAD,
@@ -124,7 +124,7 @@ describe('prepareShadowBuilding', () => {
   });
 });
 
-describe('buildShadowMesh', () => {
+describe('buildStaticShadowMesh', () => {
   const square: LatLng[] = [
     { lat: PIN.lat, lng: PIN.lng },
     { lat: PIN.lat, lng: PIN.lng + 0.00025 },
@@ -132,26 +132,20 @@ describe('buildShadowMesh', () => {
     { lat: PIN.lat + 0.00018, lng: PIN.lng },
   ];
 
-  it('emits base + roof + edge triangles, all on the ground plane', () => {
+  it('emits base + roof + edge triangles with proper height extrusions', () => {
     const b = prepareShadowBuilding(PIN, square, 10)!;
-    const mesh = buildShadowMesh([b], [0, -1]); // shadow northward, 10 m long
+    const mesh = buildStaticShadowMesh([b]);
 
     // base(6) + roof(6) + edges(4 × 6) = 36 vertices × 3 floats.
     expect(mesh).toHaveLength(36 * 3);
 
-    // Every Y coordinate is 0 (flat ground shadow).
-    for (let i = 1; i < mesh.length; i += 3) {
+    // Base vertices (first 6) have Y=0
+    for (let i = 1; i < 18; i += 3) {
       expect(mesh[i]).toBe(0);
     }
-  });
-
-  it('offsets the projected roof by height × offset', () => {
-    const b = prepareShadowBuilding(PIN, square, 10)!;
-    const mesh = buildShadowMesh([b], [0, -1]);
-    // Roof triangles start after the 6 base vertices (18 floats in).
-    // Their Z should be the base Z minus 10 (offset −1 × height 10).
-    const baseZ0 = mesh[2];
-    const roofZ0 = mesh[18 + 2];
-    expect(roofZ0).toBeCloseTo(baseZ0 - 10, 5);
+    // Roof vertices (next 6) have Y=10
+    for (let i = 19; i < 36; i += 3) {
+      expect(mesh[i]).toBe(10);
+    }
   });
 });

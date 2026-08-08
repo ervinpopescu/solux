@@ -2,7 +2,7 @@
 // Building shadow geometry
 // ==============================================================================
 //
-// Turns building footprints + a sun direction into a flat ground-shadow mesh.
+// Turns building footprints into a static extruded shadow mesh.
 //
 // The math is the classic planar shadow of a vertical prism onto flat ground.
 // A rooftop point at height `h` casts its shadow to the ground displaced
@@ -18,16 +18,21 @@
 //   2. the footprint translated by the shadow offset (the projected roof),
 //   3. the "swept" band connecting each footprint edge to its translated copy.
 //
-// We emit all three as triangles. Overlap between the pieces (and between
-// neighbouring buildings) is resolved by the *renderer*, which unions them via
-// a stencil mask before a single translucent wash — see `shadowLayer.ts`. That
+// Instead of rebuilding the mesh every time the sun moves, we emit a single
+// static mesh where the Y coordinate is the extrusion factor `h` (0 for the
+// ground, `height` for the roof). The vertex shader applies the sun-dependent
+// offset dynamically.
+//
+// Overlap between the pieces (and between neighbouring buildings) is resolved
+// by the *renderer*, which squashes the mesh to Y=0 and unions it via a
+// stencil mask before a single translucent wash — see `shadowLayer.ts`. That
 // is why we don't attempt any polygon union here: we can freely emit
 // overlapping triangles and let the stencil dedupe them.
 //
 // Coordinates. All output is LOCAL METRE space relative to the pin, matching
-// the sun-path arc's convention (X = east, Y = up, Z = south). Shadows live on
-// the ground, so Y is always 0. Keeping vertices small (metres, not mercator)
-// is what lets the layer dodge the float32 precision problem — the same
+// the sun-path arc's convention (X = east, Y = up, Z = south). Y acts as the
+// vertical extrusion factor for the shader. Keeping vertices small (metres,
+// not mercator) is what lets the layer dodge the float32 precision problem — the same
 // double-precision model matrix used by the arc maps these to mercator.
 
 import earcut from 'earcut';
@@ -175,22 +180,18 @@ export function sunShadowOffsetPerMetre(
 }
 
 /**
- * Build the flat shadow mesh (interleaved XYZ triples, Y = 0) for all
- * buildings given the per-metre shadow offset. Emits, per building:
+ * Build the static shadow mesh for all buildings. Emits, per building:
  *
- *   - the footprint triangles,
- *   - the same triangles translated by the building's own offset (h · offset),
- *   - two triangles per footprint edge sweeping base → translated copy.
+ *   - the footprint triangles (extrusion = 0)
+ *   - the projected-roof triangles (extrusion = height)
+ *   - two triangles per footprint edge sweeping base → roof
  *
- * The result is meant to be uploaded straight into the stencil-union pass.
+ * Vertices are interleaved `[x, h, z]`, where `h` is the extrusion factor (0
+ * for the ground, `height` for the roof). The vertex shader applies the
+ * sun-dependent offset to `x` and `z` multiplied by `h`.
  */
-export function buildShadowMesh(
-  buildings: ShadowBuilding[],
-  offsetPerMetre: [number, number],
-): Float32Array {
-  const [oxPerM, ozPerM] = offsetPerMetre;
-
-  // Size the output exactly: base + top = 2 · tris; edges = 6 verts per point.
+export function buildStaticShadowMesh(buildings: ShadowBuilding[]): Float32Array {
+  // Size the output exactly: base + top = 2 · tris; edges = 6 verts per edge.
   let vertexCount = 0;
   for (const b of buildings) {
     vertexCount += b.tris.length * 2;
@@ -199,23 +200,23 @@ export function buildShadowMesh(
   const out = new Float32Array(vertexCount * 3);
   let o = 0;
 
-  const put = (x: number, z: number) => {
+  const put = (x: number, h: number, z: number) => {
     out[o++] = x;
-    out[o++] = 0; // ground plane
+    out[o++] = h; // extrusion factor
     out[o++] = z;
   };
 
   for (const b of buildings) {
-    const dx = oxPerM * b.height;
-    const dz = ozPerM * b.height;
+    const h = b.height;
     const r = b.ring;
 
-    // Base + projected-roof triangles.
+    // Base triangles (h = 0)
     for (const idx of b.tris) {
-      put(r[idx * 2], r[idx * 2 + 1]);
+      put(r[idx * 2], 0, r[idx * 2 + 1]);
     }
+    // Projected-roof triangles (h = height)
     for (const idx of b.tris) {
-      put(r[idx * 2] + dx, r[idx * 2 + 1] + dz);
+      put(r[idx * 2], h, r[idx * 2 + 1]);
     }
 
     // Swept side band: one quad (two triangles) per footprint edge.
@@ -226,16 +227,13 @@ export function buildShadowMesh(
         az = r[i * 2 + 1];
       const bx = r[j * 2],
         bz = r[j * 2 + 1];
-      const axo = ax + dx,
-        azo = az + dz;
-      const bxo = bx + dx,
-        bzo = bz + dz;
-      put(ax, az);
-      put(bx, bz);
-      put(bxo, bzo);
-      put(ax, az);
-      put(bxo, bzo);
-      put(axo, azo);
+
+      put(ax, 0, az);
+      put(bx, 0, bz);
+      put(bx, h, bz);
+      put(ax, 0, az);
+      put(bx, h, bz);
+      put(ax, h, az);
     }
   }
 
