@@ -1,7 +1,7 @@
-import maplibregl from 'maplibre-gl';
+import maplibregl, { type MapSourceDataEvent } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import SunCalc from 'suncalc';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Obstruction, LatLng, SolarTimes } from '../types';
 import type { SunExposure } from '../solar/exposure';
@@ -12,21 +12,26 @@ import {
   SUN_PATH_LAYER_ID,
 } from './layers/sunPathLayer';
 import { createShadowLayer, type ShadowLayerHandle, SHADOW_LAYER_ID } from './layers/shadowLayer';
-import { prepareShadowBuilding, type ShadowBuilding } from './shadowGeometry';
+import type { ShadowBuilding } from './shadowGeometry';
+import { prepareRemoteShadowCasters } from './remoteShadowObstructions';
+import { selectShadowCasters, type ShadowCaster } from './shadowRenderBudget';
+import {
+  tileBuildingFeaturesToShadowCasters,
+  type TileBuildingFeature,
+} from './tileShadowBuildings';
+import {
+  beginTileShadowMove,
+  completeTileShadowRefresh,
+  createTileShadowRefreshGate,
+  shouldScheduleTileShadowSource,
+} from './tileShadowRefresh';
 
-// Convert the Overpass footprints (see useHorizon) into shadow-ready meshes.
-// We use Overpass rather than the map's own vector tiles because map feature
-// queries can't return the full pin-centred set in a pitched 3D view: the far
-// half of the frustum loads at a zoom where the building layer is absent, so
-// queries only ever see near-camera buildings. Overpass gives a clean radius
-// around the pin regardless of camera, and matches the horizon/exposure math.
-function prepareShadowObstructions(pin: LatLng, obstructions: Obstruction[]): ShadowBuilding[] {
-  const out: ShadowBuilding[] = [];
-  for (const o of obstructions) {
-    const prepared = prepareShadowBuilding(pin, o.geometry, o.heightMeters);
-    if (prepared) out.push(prepared);
-  }
-  return out;
+const OPENMAPTILES_SOURCE_ID = 'openmaptiles';
+const BUILDING_LAYER_ID = 'solux-buildings-3d';
+const TILE_SHADOW_REFRESH_DEBOUNCE_MS = 150;
+
+function pinKey(pin: LatLng): string {
+  return `${pin.lat},${pin.lng}`;
 }
 
 // Map an exposure state to the pin badge's icon, label, accent class, and a
@@ -113,9 +118,54 @@ export default function MapLibreView({
   // Latest sun position, so a shadow layer added asynchronously (after
   // style.load) can pick up the current sun without waiting for the next tick.
   const sunRef = useRef<{ azimuth: number; altitude: number } | null>(null);
-  // Latest prepared footprints, so a layer added after the fetch adopts them.
-  const buildingsRef = useRef<ShadowBuilding[] | null>(null);
+  // Latest budgeted footprints, so a layer added after either source adopts them.
+  const buildingsRef = useRef<ShadowBuilding[]>([]);
+  const activePinKeyRef = useRef<string | null>(null);
+  const tileCastersRef = useRef<ShadowCaster[]>([]);
+  const remoteCastersRef = useRef<ShadowCaster[]>([]);
+  const publishedShadowSignatureRef = useRef<string | null>(null);
   const badgeElRef = useRef<HTMLDivElement | null>(null);
+
+  const publishShadowData = useCallback((requestPinKey: string) => {
+    if (activePinKeyRef.current !== requestPinKey) return;
+
+    // Prefer remote geometry on exact duplicates, while retaining tile-only
+    // buildings (notably OSM footprints without height tags).
+    const unique: ShadowCaster[] = [];
+    const seen = new Set<string>();
+    for (const candidate of [...remoteCastersRef.current, ...tileCastersRef.current]) {
+      const dedupKey = `${candidate.kind}:${candidate.dedupKey}`;
+      if (seen.has(dedupKey)) continue;
+      seen.add(dedupKey);
+      unique.push(candidate);
+    }
+
+    const selection = selectShadowCasters(unique);
+    const signature = selection.casters.map((candidate) => candidate.key).join('|');
+    buildingsRef.current = selection.buildings;
+    if (signature !== publishedShadowSignatureRef.current) {
+      publishedShadowSignatureRef.current = signature;
+      shadowRef.current?.setBuildings(selection.buildings);
+    }
+
+    // Minimal production-safe diagnostics used by the hermetic browser tests
+    // and useful when investigating field performance without WebGL readback.
+    const container = containerRef.current;
+    if (container) {
+      const hasSelectedRemote = selection.casters.some(
+        (candidate) => candidate.source === 'remote',
+      );
+      container.dataset.shadowSource =
+        selection.casters.length === 0 ? 'none' : hasSelectedRemote ? 'refined' : 'tiles';
+      container.dataset.shadowCasters = String(selection.casters.length);
+      container.dataset.shadowTileCasters = String(tileCastersRef.current.length);
+      container.dataset.shadowRemoteCasters = String(remoteCastersRef.current.length);
+      container.dataset.shadowVertices = String(selection.estimatedVertices);
+      container.dataset.shadowBytes = String(selection.estimatedBytes);
+      container.dataset.shadowTrees = String(selection.selectedTreeCount);
+      container.dataset.shadowDroppedTrees = String(selection.droppedTreeCount);
+    }
+  }, []);
 
   // Keep the ref current on every render so the click handler always has the
   // latest prop without being in the init useEffect's dependency array.
@@ -161,9 +211,9 @@ export default function MapLibreView({
       // tiles (OpenMapTiles schema: source 'openmaptiles', layer 'building',
       // property 'render_height').
       map.addLayer({
-        id: 'solux-buildings-3d',
+        id: BUILDING_LAYER_ID,
         type: 'fill-extrusion',
-        source: 'openmaptiles',
+        source: OPENMAPTILES_SOURCE_ID,
         'source-layer': 'building',
         paint: {
           'fill-extrusion-color': '#1e2438',
@@ -188,6 +238,20 @@ export default function MapLibreView({
     };
     // init once — map lifecycle is managed imperatively
   }, []);
+
+  // Clear all pin-relative geometry before the camera starts moving. This
+  // prevents loaded features from the previous pin flashing at the new origin.
+  useEffect(() => {
+    const nextPinKey = pin ? pinKey(pin) : null;
+    if (activePinKeyRef.current === nextPinKey) return;
+    activePinKeyRef.current = nextPinKey;
+    tileCastersRef.current = [];
+    remoteCastersRef.current = [];
+    buildingsRef.current = [];
+    publishedShadowSignatureRef.current = null;
+    shadowRef.current?.setBuildings([]);
+    if (nextPinKey) publishShadowData(nextPinKey);
+  }, [pin, publishShadowData]);
 
   // ── Marker: update when pin changes ───────────────────────────────────
   useEffect(() => {
@@ -278,8 +342,8 @@ export default function MapLibreView({
 
   // ── Building shadows: add/remove the layer when the pin changes ───────────
   //
-  // The layer is created empty; the footprints arrive via the `buildings` prop
-  // (Overpass, camera-independent) in the effect below. Same `isStyleLoaded()`
+  // The layer is created empty; tile footprints arrive after the camera move
+  // and Overpass footprints refine them independently. Same `isStyleLoaded()`
   // + cleanup discipline as the arc, for the same StrictMode reason.
   useEffect(() => {
     const map = mapRef.current;
@@ -291,7 +355,14 @@ export default function MapLibreView({
       const m = mapRef.current;
       if (cancelled || !m) return;
       if (m.getLayer(SHADOW_LAYER_ID)) m.removeLayer(SHADOW_LAYER_ID);
-      const handle = createShadowLayer(pin!);
+      const handle = createShadowLayer(pin!, (vertexCount) => {
+        const container = containerRef.current;
+        if (!container || activePinKeyRef.current !== pinKey(pin!)) return;
+        const strCount = String(vertexCount);
+        if (container.dataset.shadowDrawVertices !== strCount) {
+          container.dataset.shadowDrawVertices = strCount;
+        }
+      });
       // Insert beneath the arc so the glowing path stays above the wash. When
       // the arc isn't present yet it's added on top and the arc, added later,
       // lands above it — either way the arc ends up on top.
@@ -301,7 +372,7 @@ export default function MapLibreView({
       // Adopt the current sun + footprints immediately (both may already be set
       // by the time the layer is added, e.g. after style.load).
       if (sunRef.current) handle.setSun(sunRef.current.azimuth, sunRef.current.altitude);
-      if (buildingsRef.current) handle.setBuildings(buildingsRef.current);
+      handle.setBuildings(buildingsRef.current);
     }
 
     if (map.isStyleLoaded()) addShadows();
@@ -320,17 +391,83 @@ export default function MapLibreView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin?.lat, pin?.lng]);
 
-  // ── Building shadows: push footprints when the Overpass set changes ───────
+  // ── Fast shadows: loaded OpenMapTiles buildings after the pin camera move ─
   useEffect(() => {
-    const prepared = pin && buildings ? prepareShadowObstructions(pin, buildings) : [];
-    buildingsRef.current = prepared;
-    shadowRef.current?.setBuildings(prepared);
-  }, [pin, buildings]);
+    const map = mapRef.current;
+    if (!map || !pin) return;
+    const activeMap = map;
+    const requestPinKey = pinKey(pin);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    const refreshGate = createTileShadowRefreshGate();
+
+    function refreshTileShadows(generation: number) {
+      if (cancelled || activePinKeyRef.current !== requestPinKey) return;
+      if (
+        activeMap.isMoving() ||
+        !activeMap.getLayer(BUILDING_LAYER_ID) ||
+        !activeMap.getSource(OPENMAPTILES_SOURCE_ID)
+      ) {
+        return;
+      }
+      const center = activeMap.getCenter();
+      if (Math.abs(center.lat - pin!.lat) > 0.00001 || Math.abs(center.lng - pin!.lng) > 0.00001) {
+        return;
+      }
+      if (!activeMap.isSourceLoaded(OPENMAPTILES_SOURCE_ID)) return;
+
+      const features = activeMap.queryRenderedFeatures({ layers: [BUILDING_LAYER_ID] });
+      tileCastersRef.current = tileBuildingFeaturesToShadowCasters(
+        pin!,
+        features as unknown as TileBuildingFeature[],
+      );
+      if (!completeTileShadowRefresh(refreshGate, generation)) return;
+      publishShadowData(requestPinKey);
+    }
+
+    function scheduleRefresh(generation: number = refreshGate.generation) {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => refreshTileShadows(generation), TILE_SHADOW_REFRESH_DEBOUNCE_MS);
+    }
+
+    function handleMoveEnd() {
+      scheduleRefresh(beginTileShadowMove(refreshGate));
+    }
+
+    function handleSourceData(event: MapSourceDataEvent) {
+      if (
+        event.sourceId === OPENMAPTILES_SOURCE_ID &&
+        event.isSourceLoaded &&
+        shouldScheduleTileShadowSource(refreshGate)
+      ) {
+        scheduleRefresh();
+      }
+    }
+
+    activeMap.on('moveend', handleMoveEnd);
+    activeMap.on('sourcedata', handleSourceData);
+    scheduleRefresh();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      activeMap.off('moveend', handleMoveEnd);
+      activeMap.off('sourcedata', handleSourceData);
+    };
+  }, [pin, publishShadowData]);
+
+  // ── Refined shadows: merge Overpass footprints without dropping tiles ─────
+  useEffect(() => {
+    if (!pin) return;
+    const requestPinKey = pinKey(pin);
+    if (activePinKeyRef.current !== requestPinKey) return;
+    remoteCastersRef.current = buildings ? prepareRemoteShadowCasters(pin, buildings) : [];
+    publishShadowData(requestPinKey);
+  }, [pin, buildings, publishShadowData]);
 
   // ── Building shadows: update sun direction on time tick / slider ──────────
-  // Recomputing the mesh is cheap (a few ms), so we drive it straight off the
-  // slider rather than debouncing; the offset is stored in `sunRef` so an
-  // async-added layer can adopt it.
+  // The static mesh is only rebuilt when source geometry changes. Slider and
+  // clock updates only change shader uniforms, so they remain immediate.
+  // The position is stored in `sunRef` so an async-added layer can adopt it.
   useEffect(() => {
     if (!pin || !dayStartUtc || timeMinutes === undefined) return;
     const instant = new Date(dayStartUtc.getTime() + timeMinutes * 60_000);
@@ -389,5 +526,5 @@ export default function MapLibreView({
     }
   }, [timeMinutes]);
 
-  return <div ref={containerRef} className={styles.map} />;
+  return <div ref={containerRef} className={styles.map} data-testid="shadow-map" />;
 }
