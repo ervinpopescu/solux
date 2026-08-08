@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchObstructions, parseObstructions, type OverpassError } from './overpass';
+import {
+  buildObstructionQuery,
+  fetchObstructions,
+  parseObstructions,
+  type OverpassError,
+} from './overpass';
 
 describe('parseObstructions', () => {
   it('returns an empty array for malformed input', () => {
@@ -89,9 +94,38 @@ describe('fetchObstructions', () => {
 
   const PIN = { lat: 51.5074, lng: -0.1278 };
 
+  it('uses the full building radius and caps trees and forest polygons at 400 m', () => {
+    const query = buildObstructionQuery(PIN, 1000);
+    expect(query).toContain('[timeout:8]');
+    expect(query).toContain('way["building"](around:1000,51.5074,-0.1278)');
+    expect(query).toContain('node["natural"="tree"](around:400,51.5074,-0.1278)');
+    expect(query).toContain('way["natural"="wood"](around:400,51.5074,-0.1278)');
+    expect(query).toContain('way["landuse"="forest"](around:400,51.5074,-0.1278)');
+  });
+
+  it('does not enlarge a requested tree radius below 400 m', () => {
+    const query = buildObstructionQuery(PIN, 250);
+    expect(query).toContain('way["building"](around:250,51.5074,-0.1278)');
+    expect(query).toContain('node["natural"="tree"](around:250,51.5074,-0.1278)');
+  });
+
   it('POSTs an Overpass query and returns the parsed obstructions', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
+      text: async () =>
+        JSON.stringify({
+          elements: [
+            {
+              type: 'way',
+              tags: { building: 'yes', height: '9' },
+              geometry: [
+                { lat: 1, lon: 2 },
+                { lat: 1, lon: 3 },
+                { lat: 2, lon: 3 },
+              ],
+            },
+          ],
+        }),
       json: async () => ({
         elements: [
           {
@@ -117,13 +151,50 @@ describe('fetchObstructions', () => {
     expect(init.method).toBe('POST');
 
     const body = decodeURIComponent((init.body as string).replace('data=', ''));
-    expect(body).toContain('way["building"]');
-    expect(body).toContain('node["natural"="tree"]');
-    expect(body).toContain('way["natural"="wood"]');
-    expect(body).toContain('way["landuse"="forest"]');
+    expect(body).toContain('[timeout:8]');
+    expect(body).toContain('way["building"](around:1000');
+    expect(body).toContain('node["natural"="tree"](around:400');
+    expect(body).toContain('way["natural"="wood"](around:400');
+    expect(body).toContain('way["landuse"="forest"](around:400');
   });
 
-  it('throws an OverpassError carrying the HTTP status on a non-ok response', async () => {
+  it('fails over to secondary endpoints when primary returns HTTP error or non-JSON response', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 504 })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => '<html>504 Gateway Time-out</html>',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            elements: [
+              {
+                type: 'way',
+                tags: { building: 'yes', height: '15' },
+                geometry: [
+                  { lat: 1, lon: 2 },
+                  { lat: 1, lon: 3 },
+                  { lat: 2, lon: 3 },
+                ],
+              },
+            ],
+          }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const obs = await fetchObstructions(PIN, 1000);
+    expect(obs).toHaveLength(1);
+    expect(obs[0].heightMeters).toBe(15);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0][0]).toContain('overpass-api.de');
+    expect(fetchMock.mock.calls[1][0]).toContain('overpass.kumi.systems');
+    expect(fetchMock.mock.calls[2][0]).toContain('overpass.private.coffee');
+  });
+
+  it('throws an OverpassError carrying the HTTP status on a non-ok response when all endpoints fail', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }));
     await expect(fetchObstructions(PIN, 1000)).rejects.toMatchObject({
       kind: 'overpass',
