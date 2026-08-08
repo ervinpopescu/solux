@@ -48,8 +48,11 @@ export default defineConfig({
     strictPort: false,
     allowedHosts: true, // Allow all hosts to fix the Tailscale wildcard issue
     hmr: {
-      host: 'aslan.home.ro',
-      protocol: process.env.VITE_HMR_PROTOCOL || 'ws',
+      host: process.env.VITE_HMR_HOST || undefined,
+      protocol: process.env.VITE_HMR_PROTOCOL || undefined,
+      clientPort: process.env.VITE_HMR_CLIENT_PORT
+        ? Number(process.env.VITE_HMR_CLIENT_PORT)
+        : undefined,
     },
   },
 });

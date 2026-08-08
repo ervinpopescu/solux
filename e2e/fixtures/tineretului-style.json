@@ -1,0 +1,31 @@
+{
+  "version": 8,
+  "name": "Solux E2E",
+  "sources": {
+    "openmaptiles": {
+      "type": "vector",
+      "tiles": ["https://tiles.openfreemap.org/e2e/{z}/{x}/{y}.pbf"],
+      "minzoom": 15,
+      "maxzoom": 15,
+      "bounds": [26.1076245, 44.4044076, 26.111624499999998, 44.408407600000004]
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#101522"
+      }
+    },
+    {
+      "id": "building",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "building",
+      "paint": {
+        "fill-color": "#222"
+      }
+    }
+  ]
+}

@@ -14,9 +14,9 @@
 
 import type { HorizonProfile, LatLng } from '../types';
 
-// Bumped to v4: HorizonProfile gained insideForest and the canopy-floor pass.
-// Old v3 profiles missing the field would report "in sun" inside a forest.
-const CACHE_PREFIX = 'solux:horizon:v4:';
+// Bumped to v5: fresh profiles use 1 km buildings, trees capped at 400 m,
+// and omit forest polygons. Older profiles represent different query coverage.
+const CACHE_PREFIX = 'solux:horizon:v5:';
 const GRID_DEG = 0.005; // ~500 m at the equator; tighter near poles
 const TTL_MS = 30 * 24 * 60 * 60_000; // 30 days
 

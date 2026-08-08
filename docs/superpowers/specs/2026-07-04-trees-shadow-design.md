@@ -166,9 +166,8 @@ return { …, buildingCount, treeCount };
 
 ## 6. Shadow layer + map view
 
-- `prepareShadowBuildings` → `prepareShadowObstructions`, accepts `Obstruction[]`
-- `shadowLayer.ts` and `shadowGeometry.ts` — no changes; they only see
-  `ShadowBuilding` (local-metre ring + earcut indices)
+- `shadowLayer.ts` and `shadowGeometry.ts` only see `ShadowBuilding` (local-metre ring + earcut indices).
+- **Note:** The preparation logic (`prepareShadowObstructions`) has since been replaced by the tile-first progressive shadow pipeline (`tileShadowBuildings.ts` and `remoteShadowObstructions.ts`), which handles trees and buildings through the same static extrusion mesh approach.
 
 ---
 
