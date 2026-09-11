@@ -1,5 +1,16 @@
-import maplibregl, { type MapSourceDataEvent } from 'maplibre-gl';
+import {
+  MapLibreMap,
+  Marker,
+  NavigationControl,
+  Popup,
+  setWorkerUrl,
+  type MapMouseEvent,
+  type MapSourceDataEvent,
+} from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+
+setWorkerUrl(maplibreWorkerUrl);
 import SunCalc from 'suncalc';
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -108,9 +119,9 @@ export default function MapLibreView({
   buildings,
 }: MapLibreViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const markerRef = useRef<maplibregl.Marker | null>(null);
-  const popupRef = useRef<maplibregl.Popup | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const markerRef = useRef<Marker | null>(null);
+  const popupRef = useRef<Popup | null>(null);
   const popupRootRef = useRef<Root | null>(null);
   const onPinRef = useRef(onPin);
   const sunPathRef = useRef<SunPathLayerHandle | null>(null);
@@ -177,7 +188,7 @@ export default function MapLibreView({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const map = new maplibregl.Map({
+    const map = new MapLibreMap({
       container: containerRef.current,
       style: 'https://tiles.openfreemap.org/styles/liberty',
       center: [0, 20],
@@ -188,15 +199,12 @@ export default function MapLibreView({
     mapRef.current = map;
 
     // Zoom +/- buttons (no compass — compass is a separate control below).
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
     // Standalone compass needle. visualizePitch tilts the needle to show the
     // current pitch. Clicking resets both bearing and pitch to 0° (north-up).
-    map.addControl(
-      new maplibregl.NavigationControl({ showZoom: false, visualizePitch: true }),
-      'top-right',
-    );
+    map.addControl(new NavigationControl({ showZoom: false, visualizePitch: true }), 'top-right');
 
-    map.on('click', (e) => {
+    map.on('click', (e: MapMouseEvent) => {
       onPinRef.current({ lat: round6(e.lngLat.lat), lng: round6(e.lngLat.lng) });
     });
 
@@ -275,13 +283,14 @@ export default function MapLibreView({
     badgeElRef.current = badge;
 
     const pinEl = document.createElement('div');
-    pinEl.innerHTML = PIN_SVG;
+    const svgDoc = new DOMParser().parseFromString(PIN_SVG, 'image/svg+xml');
+    pinEl.appendChild(svgDoc.documentElement);
     pinEl.style.cssText = 'width:32px;height:44px;cursor:pointer';
 
     el.appendChild(badge);
     el.appendChild(pinEl);
 
-    const marker = new maplibregl.Marker({ element: el }).setLngLat([pin.lng, pin.lat]).addTo(map);
+    const marker = new Marker({ element: el }).setLngLat([pin.lng, pin.lat]).addTo(map);
     markerRef.current = marker;
 
     // Fly to pin with a 3D pitch so buildings are visible.
@@ -324,7 +333,7 @@ export default function MapLibreView({
     root.render(popupContent);
     popupRootRef.current = root;
 
-    popupRef.current = new maplibregl.Popup({
+    popupRef.current = new Popup({
       closeOnClick: false,
       maxWidth: '320px',
       offset: [0, -44], // clear the marker tip
@@ -417,6 +426,7 @@ export default function MapLibreView({
       if (!activeMap.isSourceLoaded(OPENMAPTILES_SOURCE_ID)) return;
 
       const features = activeMap.queryRenderedFeatures({ layers: [BUILDING_LAYER_ID] });
+      // SAFETY: MapLibre queryRenderedFeatures returns GeoJSON features matching the 3D building layer schema.
       tileCastersRef.current = tileBuildingFeaturesToShadowCasters(
         pin!,
         features as unknown as TileBuildingFeature[],
