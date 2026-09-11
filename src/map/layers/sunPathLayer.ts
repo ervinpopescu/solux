@@ -20,7 +20,12 @@
 //    translation into a model matrix that we multiply with MapLibre's MVP in
 //    float64 on the CPU. The GPU then only ever multiplies small numbers.
 
-import maplibregl, { type CustomLayerInterface, type CustomRenderMethodInput } from 'maplibre-gl';
+import {
+  MercatorCoordinate,
+  type CustomLayerInterface,
+  type CustomRenderMethodInput,
+  type MapLibreMap,
+} from 'maplibre-gl';
 import type { LatLng, SolarTimes } from '../../types';
 import {
   buildArcSamples,
@@ -135,7 +140,7 @@ export function createSunPathLayer(
   dayStartUtc: Date,
   solarTimes: SolarTimes,
 ): SunPathLayerHandle {
-  const origin = maplibregl.MercatorCoordinate.fromLngLat({ lng: pin.lng, lat: pin.lat }, 0);
+  const origin = MercatorCoordinate.fromLngLat({ lng: pin.lng, lat: pin.lat }, 0);
   const S = origin.meterInMercatorCoordinateUnits();
   const oz = origin.z ?? 0;
 
@@ -215,7 +220,7 @@ export function createSunPathLayer(
   let uColor: WebGLUniformLocation | null;
   let uSize: WebGLUniformLocation | null;
   let uViewport: WebGLUniformLocation | null;
-  let storedMap: maplibregl.Map | undefined;
+  let storedMap: MapLibreMap | undefined;
 
   // Binds the interleaved buffer to the position + corner attributes.
   function bindAttribs(buf: WebGLBuffer) {

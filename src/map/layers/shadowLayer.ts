@@ -23,7 +23,12 @@
 // precision problem). We likewise use `defaultProjectionData.mainMatrix`, not
 // `modelViewProjectionMatrix`, for the mercator→clip transform.
 
-import maplibregl, { type CustomLayerInterface, type CustomRenderMethodInput } from 'maplibre-gl';
+import {
+  MercatorCoordinate,
+  type CustomLayerInterface,
+  type CustomRenderMethodInput,
+  type MapLibreMap,
+} from 'maplibre-gl';
 import type { LatLng } from '../../types';
 import {
   buildStaticShadowMesh,
@@ -123,7 +128,7 @@ export function createShadowLayer(
   pin: LatLng,
   onShadowDraw?: (vertexCount: number) => void,
 ): ShadowLayerHandle {
-  const origin = maplibregl.MercatorCoordinate.fromLngLat({ lng: pin.lng, lat: pin.lat }, 0);
+  const origin = MercatorCoordinate.fromLngLat({ lng: pin.lng, lat: pin.lat }, 0);
   const S = origin.meterInMercatorCoordinateUnits();
   const oz = origin.z ?? 0;
 
@@ -153,7 +158,7 @@ export function createShadowLayer(
   let uMvp: WebGLUniformLocation | null = null;
   let uOffset: WebGLUniformLocation | null = null;
   let uColor: WebGLUniformLocation | null = null;
-  let storedMap: maplibregl.Map | undefined;
+  let storedMap: MapLibreMap | undefined;
 
   // Recompute the mesh only when buildings change.
   function rebuild() {
