@@ -8,10 +8,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
-    // Only collect unit tests under src. Without this, Vitest's default glob
+    // Only collect unit tests under src and scripts. Without this, Vitest's default glob
     // also picks up the Playwright specs in e2e/ (*.spec.ts) and fails trying
     // to run them under its own runner.
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       // text for local runs, lcov for the Codecov upload in CI.

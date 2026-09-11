@@ -83,6 +83,17 @@ check:
     just typecheck
     just test
 
+# --- Deployment ---
+
+# Validate production build artifacts and simulate deployment (dry run)
+deploy-check *args="":
+    node scripts/deploy.js --dry-run {{args}}
+
+# Build and deploy production bundle to static web root (/var/www/solux by default)
+deploy *args="":
+    just build
+    node scripts/deploy.js {{args}}
+
 # --- Infrastructure & Serving ---
 
 # Serve application over local HTTPS via Docker Nginx proxy
