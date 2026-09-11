@@ -26,7 +26,7 @@ A map-driven golden hour calculator for photographers. Click anywhere on the map
 ## Stack
 
 | Concern | Library |
-|---|---|
+| --- | --- |
 | Build | Vite 5 + TypeScript + Vite PWA |
 | UI | React 18 |
 | Map | MapLibre GL JS + OpenFreeMap (vector tiles, no API key) |
@@ -41,33 +41,74 @@ A map-driven golden hour calculator for photographers. Click anywhere on the map
 
 ```sh
 npm install
-npm run dev
+npm run dev       # or: just dev
 ```
+
+Open the URL printed by Vite, click anywhere on the map.
+
+### Development commands
+
+A [`justfile`](./justfile) provides task runner shortcuts (run `just` or `just --list` for all available recipes):
+
+```sh
+just dev          # start dev server with HMR
+just check        # run format check, linter, typecheck, and unit tests
+just test         # run Vitest unit tests
+just build        # production bundle (tsc -b && vite build)
+just preview      # preview production build locally
+```
+
+Equivalent `npm` scripts are also available (`npm run dev`, `npm test`, `npm run build`, `npm run lint`, `npm run format:check`).
 
 ### HTTPS Support (for Geolocation)
 
 The Geolocation API requires a secure context (HTTPS). You can use the included Nginx reverse proxy (requires Docker):
 
 1. Start the dev server with `wss` protocol:
+
    ```sh
    VITE_HMR_PROTOCOL=wss npm run dev
    ```
+
 2. Start the HTTPS proxy:
+
    ```sh
    npm run serve:https
    ```
+
 3. Open [https://localhost:8443](https://localhost:8443) (you will need to accept the self-signed certificate).
 
 Alternatively, use **ngrok**:
+
 ```sh
 npm run serve:ngrok
 ```
 
-Open the URL printed by Vite, click anywhere on the map.
+## Deployment
+
+Solux is deployed as a static web application to `/var/www/solux` (default). The deployment pipeline validates build completeness, preserves older hashed assets for active sessions, and atomically updates lifecycle entrypoints (`index.html`, `sw.js`, `manifest.webmanifest`).
 
 ```sh
-npm test          # run unit tests
-npm run build     # production bundle
+# Build and deploy to /var/www/solux (default)
+just deploy
+# Or with npm:
+npm run deploy
+
+# Validate build artifacts and simulate deployment without disk writes (dry run)
+just deploy-check
+# Or with npm:
+npm run deploy:check
+```
+
+To specify a custom web root:
+
+```sh
+# Via CLI flag
+just deploy --target /custom/webroot
+npm run deploy -- --target /custom/webroot
+
+# Or via environment variable
+SOLUX_TARGET_DIR=/custom/webroot just deploy
 ```
 
 ## How the building-horizon works

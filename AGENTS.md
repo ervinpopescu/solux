@@ -10,14 +10,34 @@ secrets.
 
 ## Commands
 
+Using `just` (command runner):
+
 ```sh
-npm run dev      # dev server (http://localhost:5173)
-npm test         # vitest unit tests — run before every commit
-npm run build    # tsc -b && vite build — must succeed with zero errors
-npx tsc -b       # type-check only (faster than a full build)
+just dev           # dev server (http://localhost:5173)
+just check         # all quality gates: format-check, lint, typecheck, test
+just test          # vitest unit tests — run before every commit
+just typecheck     # type-check only (tsc -b)
+just build         # tsc -b && vite build — must succeed with zero errors
+just lint          # eslint check (just lint-fix to auto-fix)
+just format-check  # prettier check (just format to reformat)
+just deploy-check  # dry-run validate production build artifacts
+just deploy        # build and deploy static bundle to /var/www/solux (or $SOLUX_TARGET_DIR)
 ```
 
-Always run `npm test` and `npx tsc -b` before considering a task done.
+Direct `npm` equivalents:
+
+```sh
+npm run dev
+npm test
+npx tsc -b
+npm run build
+npm run lint
+npm run format:check
+npm run deploy:check
+npm run deploy
+```
+
+Always run `npm test` and `npx tsc -b` (or `just check`) before considering a task done.
 
 ## Architecture
 
@@ -97,6 +117,7 @@ CSS.
 
 **Mobile layout**
 On `max-width: 640px`:
+
 - `App` forces `displayMode = 'drawer'` regardless of stored prefs
 - `Controls` hides the view-mode selector and the SOLUX brand label
 - `BottomDrawer` starts collapsed (`startCollapsed` prop) so the map fills
@@ -124,6 +145,7 @@ factor `s = MercatorCoordinate.meterInMercatorCoordinateUnits()` converts
 metres to dimensionless mercator units.
 
 **localStorage keys**
+
 - `solux:prefs:v1` — user preferences (pin, date, displayMode)
 - `solux:horizon:v5:<lat>,<lng>,<radius>` — cached HorizonProfile
 
@@ -135,11 +157,13 @@ Tests live next to the module they cover (`calc.test.ts` beside `calc.ts`).
 Vitest globals are enabled; no need to import `describe`/`it`/`expect`.
 
 What to test:
+
 - Pure functions exhaustively (edge cases, polar coordinates, malformed input)
 - Storage round-trips, TTL expiry, and malformed-JSON recovery
 - Horizon geometry against analytically-predictable synthetic buildings
 
 What not to test here:
+
 - Overpass network fetches (mock at the `fetch` boundary if needed)
 - React component rendering (the pure-function layer is the meaningful logic)
 
@@ -155,3 +179,19 @@ What not to test here:
    - Sky-only → pass through unchanged (copy the field from `times`)
 5. Add a row in `SolarInfo.tsx` in chronological order
 6. Add test coverage in `solar/calc.test.ts`
+
+## Deployment
+
+Deployment is handled by `scripts/deploy.js` (`just deploy` / `npm run deploy`):
+
+- Default target directory is `/var/www/solux`, overrideable via `--target <dir>`
+  or the `SOLUX_TARGET_DIR` environment variable.
+- Validation (`validateDist`) checks for required PWA shell files, hashed `.js`
+  and `.css` bundles in `assets/`, and rejects unsafe/broken symlinks or targets
+  resolving to the source `dist` directory.
+- Atomic promotion sequence: hashed assets staged first in `assets/` (preserving
+  prior session assets so active tabs never 404), static root files staged next,
+  and lifecycle files (`manifest.webmanifest`, `registerSW.js`, `sw.js`,
+  `index.html`) promoted atomically via temporary file replacement.
+- Dry-run validation (`just deploy-check` / `npm run deploy:check`) exercises the
+  full validation pipeline and logs planned filesystem operations without writing.
