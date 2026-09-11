@@ -7,6 +7,7 @@ blob-report/
 coverage/
 package-lock.json
 *.tsbuildinfo
+.pi/
 
 # Markdown is hand-authored prose (docs, specs, READMEs) with deliberate
 # line wrapping. Let authors own its formatting rather than reflowing it.

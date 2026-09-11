@@ -18,3 +18,5 @@ playwright/.cache
 
 # Infrastructure
 infra/ssl/
+
+.pi/
