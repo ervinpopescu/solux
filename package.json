@@ -18,6 +18,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "prepare": "husky",
+    "deploy": "node scripts/deploy.js",
+    "deploy:check": "node scripts/deploy.js --dry-run",
     "serve:https": "bash infra/serve-https.sh",
     "serve:https:stop": "docker rm -f solux-nginx",
     "serve:ngrok": "npx ngrok http 5173"
