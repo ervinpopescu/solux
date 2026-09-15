@@ -17,7 +17,7 @@
 // than fast enough (a few hundred SunCalc.getPosition calls) and avoids
 // pulling in a closed-form solver.
 
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import type { HorizonProfile, LatLng, SolarTimes, TimeWindow } from '../types';
 import { obstructionAtSunAzimuth } from './horizon';
 
@@ -30,7 +30,11 @@ const REFINE_PRECISION_MS = 1_000;
 
 function isSunVisible(pin: LatLng, when: Date, profile: HorizonProfile): boolean {
   const { altitude, azimuth } = SunCalc.getPosition(when, pin.lat, pin.lng);
-  return altitude > obstructionAtSunAzimuth(profile, azimuth);
+  // SunCalc 2 reports degrees and compass bearings; the horizon profile uses
+  // radians and the pre-v2 south-based azimuth convention.
+  const altitudeRad = (altitude * Math.PI) / 180;
+  const suncalcAzimuthRad = (azimuth * Math.PI) / 180 - Math.PI;
+  return altitudeRad > obstructionAtSunAzimuth(profile, suncalcAzimuthRad);
 }
 
 /**

@@ -1,4 +1,4 @@
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import type { LatLng, SolarTimes, TimeWindow } from '../types';
 
 // Visual radius of the arc in metres from the pin. At city zoom + 45° pitch
@@ -8,6 +8,18 @@ const ARC_RADIUS_M = 400;
 // Sampling interval. 5-minute steps give 288 points max for a full-day arc,
 // which is enough for smooth curvature without excessive geometry.
 const STEP_MIN = 5;
+const RAD = Math.PI / 180;
+
+/** Convert SunCalc 2's degree/compass output to the radians used by map geometry. */
+function sunPositionRadians(date: Date, pin: LatLng): { azimuth: number; altitude: number } {
+  const { azimuth, altitude } = SunCalc.getPosition(date, pin.lat, pin.lng);
+  return {
+    // Internal geometry retains the legacy SunCalc convention: south=0,
+    // east=-PI/2, west=PI/2. SunCalc 2 reports compass bearings instead.
+    azimuth: azimuth * RAD - Math.PI,
+    altitude: altitude * RAD,
+  };
+}
 
 export type ArcPhase = 'twilight' | 'blue_hour' | 'golden_hour' | 'soft_light' | 'late' | 'midday';
 
@@ -37,7 +49,7 @@ export type ArcSample = {
 
 // ── Coordinate conversion ──────────────────────────────────────────────────
 //
-// SunCalc azimuth convention: 0 = south, -PI/2 = east, PI/2 = west, ±PI = north.
+// Internal sun azimuth convention: 0 = south, -PI/2 = east, PI/2 = west, ±PI = north.
 // Three.js space (before MapLibre's coordinate transform): X = east, Y = up,
 // Z = south (so -Z points north). The MapLibre custom layer transform
 // (rotateX(PI/2) + scale(s, -s, s)) maps this to mercator space correctly.
@@ -104,7 +116,7 @@ export function buildArcSamples(
 
   for (let m = 0; m < 1440; m += STEP_MIN) {
     const t = new Date(dayStartUtc.getTime() + m * 60_000);
-    const pos = SunCalc.getPosition(t, pin.lat, pin.lng);
+    const pos = sunPositionRadians(t, pin);
     if (pos.altitude <= 0) continue;
 
     const [xM, yM, zM] = sunToThreeXYZ(pos.azimuth, pos.altitude);
@@ -130,7 +142,7 @@ export function sunPositionAtMinute(
   minuteOfDay: number,
 ): [number, number, number] | null {
   const t = new Date(dayStartUtc.getTime() + minuteOfDay * 60_000);
-  const pos = SunCalc.getPosition(t, pin.lat, pin.lng);
+  const pos = sunPositionRadians(t, pin);
   if (pos.altitude <= 0) return null;
   return sunToThreeXYZ(pos.azimuth, pos.altitude);
 }
@@ -158,7 +170,7 @@ export function buildArcMarkers(pin: LatLng, solarTimes: SolarTimes): ArcMarker[
   const markers: ArcMarker[] = [];
   const add = (when: Date | null, kind: ArcMarkerKind, clampToHorizon: boolean) => {
     if (!when) return;
-    const pos = SunCalc.getPosition(when, pin.lat, pin.lng);
+    const pos = sunPositionRadians(when, pin);
     const altitude = clampToHorizon ? Math.max(pos.altitude, 0) : pos.altitude;
     if (altitude < 0) return; // noon below horizon (deep polar winter) → skip
     markers.push({ pos: sunToThreeXYZ(pos.azimuth, altitude), kind });

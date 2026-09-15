@@ -9,11 +9,12 @@
 // using the same horizon profile that drives the effective sunrise/sunset
 // calculation — so the badge and the panel always agree.
 
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import type { HorizonProfile, LatLng } from '../types';
 import { obstructionAtSunAzimuth } from '../buildings/horizon';
 
 const DEG = 180 / Math.PI;
+const RAD = Math.PI / 180;
 
 export type SunExposure =
   // Sun is geometrically below the horizon — night, or pre-dawn/post-dusk.
@@ -41,13 +42,17 @@ export function sunExposureAt(
   profile: HorizonProfile | null,
 ): SunExposure {
   const { altitude, azimuth } = SunCalc.getPosition(instant, pin.lat, pin.lng);
-  const sunAltitudeDeg = altitude * DEG;
+  // SunCalc 2 reports altitude and compass azimuth in degrees. The horizon
+  // profile still uses radians and the pre-v2 south-based azimuth convention.
+  const sunAltitudeDeg = altitude;
+  const altitudeRad = altitude * RAD;
+  const suncalcAzimuthRad = azimuth * RAD - Math.PI;
 
-  if (altitude <= 0) {
+  if (altitudeRad <= 0) {
     return { state: 'below_horizon', sunAltitudeDeg };
   }
 
-  const obstructionDeg = profile ? obstructionAtSunAzimuth(profile, azimuth) * DEG : 0;
+  const obstructionDeg = profile ? obstructionAtSunAzimuth(profile, suncalcAzimuthRad) * DEG : 0;
   const marginDeg = sunAltitudeDeg - obstructionDeg;
 
   return marginDeg > 0
