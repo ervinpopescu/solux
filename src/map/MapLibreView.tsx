@@ -11,7 +11,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 setWorkerUrl(maplibreWorkerUrl);
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import { type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import type { Obstruction, LatLng, SolarTimes } from '../types';
@@ -40,6 +40,7 @@ import {
 const OPENMAPTILES_SOURCE_ID = 'openmaptiles';
 const BUILDING_LAYER_ID = 'solux-buildings-3d';
 const TILE_SHADOW_REFRESH_DEBOUNCE_MS = 150;
+const RAD = Math.PI / 180;
 
 function pinKey(pin: LatLng): string {
   return `${pin.lat},${pin.lng}`;
@@ -482,8 +483,12 @@ export default function MapLibreView({
     if (!pin || !dayStartUtc || timeMinutes === undefined) return;
     const instant = new Date(dayStartUtc.getTime() + timeMinutes * 60_000);
     const pos = SunCalc.getPosition(instant, pin.lat, pin.lng);
-    sunRef.current = { azimuth: pos.azimuth, altitude: pos.altitude };
-    shadowRef.current?.setSun(pos.azimuth, pos.altitude);
+    // SunCalc 2 reports degrees and compass bearings; shadow geometry keeps
+    // its internal radians/south-based convention for compatibility.
+    const azimuthRad = pos.azimuth * RAD - Math.PI;
+    const altitudeRad = pos.altitude * RAD;
+    sunRef.current = { azimuth: azimuthRad, altitude: altitudeRad };
+    shadowRef.current?.setSun(azimuthRad, altitudeRad);
   }, [pin, dayStartUtc, timeMinutes]);
 
   // ── Sun path arc: rebuild when pin, date, or solar times change ───────────

@@ -4,7 +4,7 @@
 // convention that the badge and the effective-times calc both depend on.
 
 import { describe, expect, it } from 'vitest';
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import { sunExposureAt } from './exposure';
 import type { HorizonProfile, LatLng } from '../types';
 
@@ -34,8 +34,9 @@ function profileBlockingBearing(bearingDeg: number, altitudeRad: number): Horizo
 
 describe('sunExposureAt', () => {
   const { altitude, azimuth } = SunCalc.getPosition(NOON, LONDON.lat, LONDON.lng);
-  const sunAltDeg = altitude * DEG;
-  const sunBearingDeg = ((azimuth + Math.PI) * DEG + 360) % 360;
+  // SunCalc 2 returns both values in degrees, with azimuth clockwise from north.
+  const sunAltDeg = altitude;
+  const sunBearingDeg = azimuth;
   // An obstruction taller than the sun, used to force a shaded result.
   const tallerThanSun = (sunAltDeg + 10) / DEG;
 

@@ -43,11 +43,11 @@
 // ## Polar regions
 //
 // Near the poles, some phases simply don't occur on a given date (e.g. polar
-// summer has no sunset). SunCalc signals this by returning a `Date` whose
-// `getTime()` is `NaN` (an "Invalid Date"). We normalize that to `null` so
-// downstream code can branch on presence instead of probing for NaN.
+// summer has no sunset). SunCalc signals this by returning `null`. We also
+// normalize any Invalid Date values defensively so downstream code can branch
+// on presence instead of probing for NaN.
 
-import SunCalc from 'suncalc';
+import * as SunCalc from 'suncalc';
 import type { LatLng, SolarTimes, TimeWindow } from '../types';
 
 // Register the "soft light" elevation. SunCalc accepts custom sun-altitude
@@ -77,22 +77,25 @@ SunCalc.addTime(24, 'lateMorningEnd', 'lateAfternoonStart');
 // return type at the single site that needs them. `getTimes` always returns
 // extra entries for every `addTime` registration; the keys exist at runtime.
 type ExtendedTimes = ReturnType<typeof SunCalc.getTimes> & {
-  softLightEndMorning: Date;
-  softLightStartEvening: Date;
-  lateMorningEnd: Date;
-  lateAfternoonStart: Date;
+  softLightEndMorning: Date | null;
+  softLightStartEvening: Date | null;
+  lateMorningEnd: Date | null;
+  lateAfternoonStart: Date | null;
 };
 
-// SunCalc's `.d.ts` types every key as `Date`, but in practice each one may
-// be an Invalid Date. This helper makes the nullability explicit.
-function nullIfInvalid(d: Date): Date | null {
+// SunCalc's built-in types model absent events as `null`; this helper also
+// handles Invalid Date values defensively for compatibility with older builds.
+function nullIfInvalid(d: Date | null | undefined): Date | null {
   return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
 }
 
 // Build a TimeWindow only if both endpoints are valid. If either side is
 // missing (polar edge cases), the whole window is `null` — we never report
 // a half-defined phase.
-function makeWindow(start: Date, end: Date): TimeWindow | null {
+function makeWindow(
+  start: Date | null | undefined,
+  end: Date | null | undefined,
+): TimeWindow | null {
   const s = nullIfInvalid(start);
   const e = nullIfInvalid(end);
   return s && e ? { start: s, end: e } : null;
