@@ -43,13 +43,19 @@ describe('applyHorizonToSolarTimes', () => {
     expect(result.blueHourMorning?.start.getTime()).toBe(geom.blueHourMorning?.start.getTime());
     expect(result.blueHourEvening?.end.getTime()).toBe(geom.blueHourEvening?.end.getTime());
 
-    // Sun-direct windows survive too on a flat horizon.
-    expect(result.goldenHourMorning).not.toBeNull();
-    expect(result.goldenHourEvening).not.toBeNull();
-    expect(result.softLightMorning).not.toBeNull();
-    expect(result.softLightEvening).not.toBeNull();
-    expect(result.lateMorning).not.toBeNull();
-    expect(result.lateAfternoon).not.toBeNull();
+    // Sun-direct windows survive too on a flat horizon and preserve exact geometric endpoints.
+    expect(result.goldenHourMorning?.start.getTime()).toBe(geom.goldenHourMorning?.start.getTime());
+    expect(result.goldenHourMorning?.end.getTime()).toBe(geom.goldenHourMorning?.end.getTime());
+    expect(result.goldenHourEvening?.start.getTime()).toBe(geom.goldenHourEvening?.start.getTime());
+    expect(result.goldenHourEvening?.end.getTime()).toBe(geom.goldenHourEvening?.end.getTime());
+    expect(result.softLightMorning?.start.getTime()).toBe(geom.softLightMorning?.start.getTime());
+    expect(result.softLightMorning?.end.getTime()).toBe(geom.softLightMorning?.end.getTime());
+    expect(result.softLightEvening?.start.getTime()).toBe(geom.softLightEvening?.start.getTime());
+    expect(result.softLightEvening?.end.getTime()).toBe(geom.softLightEvening?.end.getTime());
+    expect(result.lateMorning?.start.getTime()).toBe(geom.lateMorning?.start.getTime());
+    expect(result.lateMorning?.end.getTime()).toBe(geom.lateMorning?.end.getTime());
+    expect(result.lateAfternoon?.start.getTime()).toBe(geom.lateAfternoon?.start.getTime());
+    expect(result.lateAfternoon?.end.getTime()).toBe(geom.lateAfternoon?.end.getTime());
   });
 
   it('blocks all sun-direct phases when the entire sky is obstructed', () => {
@@ -94,5 +100,39 @@ describe('applyHorizonToSolarTimes', () => {
 
     const ghe = result.goldenHourEvening!;
     expect(ghe.end.getTime()).toBeGreaterThan(ghe.start.getTime());
+  });
+
+  it('preserves exact non-30-second aligned endpoints on a flat horizon', () => {
+    const profile = flatProfile(LONDON);
+    const customTimes = {
+      ...geom,
+      goldenHourMorning: {
+        start: new Date(geom.goldenHourMorning!.start.getTime() + 12_345),
+        end: new Date(geom.goldenHourMorning!.end.getTime() - 7_891),
+      },
+    };
+    const result = applyHorizonToSolarTimes(LONDON, customTimes, profile);
+    expect(result.goldenHourMorning?.start.getTime()).toBe(
+      customTimes.goldenHourMorning.start.getTime(),
+    );
+    expect(result.goldenHourMorning?.end.getTime()).toBe(
+      customTimes.goldenHourMorning.end.getTime(),
+    );
+  });
+
+  it('refines partially obstructed window boundaries beyond coarse 30s steps', () => {
+    const profile = flatProfile(LONDON);
+    // Block the earliest portion of morning golden hour (~45° to 52° azimuth)
+    // with a low 2.8° (0.05 rad) obstruction so that goldenHourMorning starts late.
+    for (let b = 45; b <= 52; b++) {
+      profile.bucketsRad[b] = 0.05;
+    }
+    const result = applyHorizonToSolarTimes(LONDON, geom, profile);
+    const gh = result.goldenHourMorning;
+    expect(gh).not.toBeNull();
+    expect(gh!.start.getTime()).toBeGreaterThan(geom.goldenHourMorning!.start.getTime());
+    expect(gh!.start.getTime()).toBeLessThan(gh!.end.getTime());
+    // End is unobstructed, so it remains exact.
+    expect(gh!.end.getTime()).toBe(geom.goldenHourMorning!.end.getTime());
   });
 });

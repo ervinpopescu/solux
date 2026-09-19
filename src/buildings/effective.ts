@@ -155,22 +155,42 @@ function effectiveWindow(
 ): TimeWindow | null {
   if (!geom) return null;
 
-  let firstVisible: number | null = null;
-  let lastVisible: number | null = null;
+  const tStart = geom.start.getTime();
+  const tEnd = geom.end.getTime();
+  if (tStart > tEnd) return null;
 
-  // Inclusive endpoints — geometric phase boundaries can themselves be the
-  // visible moments if the obstruction is just below the sun's altitude.
-  for (let t = geom.start.getTime(); t <= geom.end.getTime(); t += VIS_SCAN_STEP_MS) {
-    if (isSunVisible(pin, new Date(t), profile)) {
-      if (firstVisible === null) firstVisible = t;
-      lastVisible = t;
-    }
+  // Build sample timestamps across the window, always including exact endpoints.
+  const sampleTimes: number[] = [];
+  for (let t = tStart; t < tEnd; t += VIS_SCAN_STEP_MS) {
+    sampleTimes.push(t);
+  }
+  sampleTimes.push(tEnd);
+
+  const visibility = sampleTimes.map((t) => isSunVisible(pin, new Date(t), profile));
+  const firstVisibleIdx = visibility.indexOf(true);
+  const lastVisibleIdx = visibility.lastIndexOf(true);
+
+  if (firstVisibleIdx === -1 || lastVisibleIdx === -1) return null;
+
+  // Preserve exact unclipped endpoints when already visible; refine the transition
+  // when an endpoint is obstructed.
+  const effectiveStart =
+    firstVisibleIdx === 0
+      ? geom.start
+      : refine(pin, sampleTimes[firstVisibleIdx], sampleTimes[firstVisibleIdx - 1], profile);
+
+  const effectiveEnd =
+    lastVisibleIdx === sampleTimes.length - 1
+      ? geom.end
+      : refine(pin, sampleTimes[lastVisibleIdx], sampleTimes[lastVisibleIdx + 1], profile);
+
+  if (effectiveStart.getTime() > effectiveEnd.getTime()) {
+    return null;
   }
 
-  if (firstVisible === null || lastVisible === null) return null;
   return {
-    start: new Date(firstVisible),
-    end: new Date(lastVisible),
+    start: effectiveStart,
+    end: effectiveEnd,
   };
 }
 
