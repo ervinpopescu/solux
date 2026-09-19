@@ -32,13 +32,17 @@ export default function SearchBox({ onPin }: Props) {
 
   const search = useCallback(async (q: string) => {
     if (q.trim().length < 3) {
+      abortRef.current?.abort();
+      abortRef.current = null;
       setHits([]);
       setOpen(false);
+      setLoading(false);
       return;
     }
 
     abortRef.current?.abort();
-    abortRef.current = new AbortController();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
 
     try {
@@ -51,17 +55,21 @@ export default function SearchBox({ onPin }: Props) {
       const contact = import.meta.env.VITE_NOMINATIM_CONTACT as string | undefined;
       if (contact) url.searchParams.set('email', contact);
 
-      const res = await fetch(url.toString(), { signal: abortRef.current.signal });
+      const res = await fetch(url.toString(), { signal: controller.signal });
       const data = (await res.json()) as Hit[];
-      setHits(data);
-      setOpen(data.length > 0);
+      if (abortRef.current === controller) {
+        setHits(data);
+        setOpen(data.length > 0);
+      }
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
+      if ((err as Error).name !== 'AbortError' && abortRef.current === controller) {
         setHits([]);
         setOpen(false);
       }
     } finally {
-      setLoading(false);
+      if (abortRef.current === controller) {
+        setLoading(false);
+      }
     }
   }, []);
 
