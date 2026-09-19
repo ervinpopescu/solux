@@ -151,6 +151,28 @@ describe('tileBuildingFeaturesToShadowCasters', () => {
     expect(casters).toHaveLength(2);
   });
 
+  it('unwraps antimeridian longitudes when ranking tile candidate parts', () => {
+    const pin = { lat: 0, lng: 179.999 };
+    const antimeridianRing = [
+      [179.9992, -0.0001],
+      [-179.9992, -0.0001],
+      [-179.9992, 0.0001],
+      [179.9992, 0.0001],
+      [179.9992, -0.0001],
+    ];
+    const casters = tileBuildingFeaturesToShadowCasters(pin, [
+      {
+        id: 'near-antimeridian',
+        properties: { render_height: 10 },
+        geometry: { type: 'Polygon', coordinates: [antimeridianRing] },
+      },
+    ]);
+
+    expect(casters).toHaveLength(1);
+    expect(casters[0].distanceSquared).toBeLessThan(1_000_000);
+    expect(casters[0].key).toContain('tile:near-antimeridian:');
+  });
+
   it('caps nearest tile parts before detailed preparation', () => {
     const features = Array.from({ length: MAX_TILE_SHADOW_PARTS_TO_PREPARE + 20 }, (_, index) => ({
       id: index,

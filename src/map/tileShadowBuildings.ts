@@ -69,21 +69,27 @@ function rankTilePart(pin: LatLng, part: TilePart): RankedItem<TilePart> | null 
     return null;
   }
   let lat = 0;
-  let lng = 0;
+  let unwrappedLngSum = 0;
   for (const coordinate of part.ring) {
     if (!Array.isArray(coordinate) || coordinate.length < 2) return null;
     if (typeof coordinate[0] !== 'number' || typeof coordinate[1] !== 'number') return null;
     if (!Number.isFinite(coordinate[0]) || !Number.isFinite(coordinate[1])) return null;
-    lng += coordinate[0];
+    let dLng = coordinate[0] - pin.lng;
+    while (dLng > 180) dLng -= 360;
+    while (dLng < -180) dLng += 360;
+    unwrappedLngSum += pin.lng + dLng;
     lat += coordinate[1];
   }
-  lng /= part.ring.length;
+  const avgUnwrappedLng = unwrappedLngSum / part.ring.length;
   lat /= part.ring.length;
-  const [x, z] = lngLatToLocalMetres(pin, { lat, lng });
+  const [x, z] = lngLatToLocalMetres(pin, { lat, lng: avgUnwrappedLng });
+  let canonicalLng = avgUnwrappedLng;
+  while (canonicalLng > 180) canonicalLng -= 360;
+  while (canonicalLng < -180) canonicalLng += 360;
   return {
     value: part,
     distanceSquared: x * x + z * z,
-    key: `${lat.toFixed(7)},${lng.toFixed(7)}:${part.featureKey}:${part.polygonIndex}`,
+    key: `${lat.toFixed(7)},${canonicalLng.toFixed(7)}:${part.featureKey}:${part.polygonIndex}`,
   };
 }
 
