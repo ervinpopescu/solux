@@ -101,25 +101,51 @@ const SHADOW_MAX_ALPHA = 0.7;
 const NIGHT_COLOR: [number, number, number] = [0.015, 0.025, 0.06];
 const NIGHT_MAX_ALPHA = 0.82;
 
-function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader {
-  const s = gl.createShader(type)!;
+function compileShader(gl: WebGL2RenderingContext, type: number, src: string): WebGLShader | null {
+  const s = gl.createShader(type);
+  if (!s) return null;
   gl.shaderSource(s, src);
   gl.compileShader(s);
   if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
     console.error('[solux] shadow shader:', gl.getShaderInfoLog(s));
+    gl.deleteShader(s);
+    return null;
   }
   return s;
 }
 
-function linkProgram(gl: WebGL2RenderingContext, vsrc: string, fsrc: string): WebGLProgram {
-  const p = gl.createProgram()!;
-  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vsrc));
-  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fsrc));
+interface LinkedProgram {
+  program: WebGLProgram;
+  shaders: [WebGLShader, WebGLShader];
+}
+
+function linkProgram(gl: WebGL2RenderingContext, vsrc: string, fsrc: string): LinkedProgram | null {
+  const vs = compileShader(gl, gl.VERTEX_SHADER, vsrc);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsrc);
+  if (!vs || !fs) {
+    if (vs) gl.deleteShader(vs);
+    if (fs) gl.deleteShader(fs);
+    return null;
+  }
+
+  const p = gl.createProgram();
+  if (!p) {
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    return null;
+  }
+
+  gl.attachShader(p, vs);
+  gl.attachShader(p, fs);
   gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
     console.error('[solux] shadow program link:', gl.getProgramInfoLog(p));
+    gl.deleteProgram(p);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    return null;
   }
-  return p;
+  return { program: p, shaders: [vs, fs] };
 }
 
 // ── Factory ──────────────────────────────────────────────────────────────────
@@ -150,7 +176,9 @@ export function createShadowLayer(
   // ── WebGL objects ─────────────────────────────────────────────────────────
   let gl: WebGL2RenderingContext | null = null;
   let maskProg: WebGLProgram | null = null;
+  let maskShaders: [WebGLShader, WebGLShader] | null = null;
   let washProg: WebGLProgram | null = null;
+  let washShaders: [WebGLShader, WebGLShader] | null = null;
   let meshBuf: WebGLBuffer | null = null;
   let fsBuf: WebGLBuffer | null = null;
   let aPos = -1;
@@ -180,8 +208,27 @@ export function createShadowLayer(
       storedMap = map;
       gl = glCtx as WebGL2RenderingContext;
 
-      maskProg = linkProgram(gl, MASK_VERT, MASK_FRAG);
-      washProg = linkProgram(gl, WASH_VERT, WASH_FRAG);
+      const mask = linkProgram(gl, MASK_VERT, MASK_FRAG);
+      const wash = linkProgram(gl, WASH_VERT, WASH_FRAG);
+      if (!mask || !wash) {
+        if (mask) {
+          gl.deleteShader(mask.shaders[0]);
+          gl.deleteShader(mask.shaders[1]);
+          gl.deleteProgram(mask.program);
+        }
+        if (wash) {
+          gl.deleteShader(wash.shaders[0]);
+          gl.deleteShader(wash.shaders[1]);
+          gl.deleteProgram(wash.program);
+        }
+        return;
+      }
+
+      maskProg = mask.program;
+      maskShaders = mask.shaders;
+      washProg = wash.program;
+      washShaders = wash.shaders;
+
       aPos = gl.getAttribLocation(maskProg, 'a_pos');
       uMvp = gl.getUniformLocation(maskProg, 'u_mvp');
       uOffset = gl.getUniformLocation(maskProg, 'u_offset');
@@ -285,10 +332,32 @@ export function createShadowLayer(
 
     onRemove() {
       if (!gl) return;
-      if (meshBuf) gl.deleteBuffer(meshBuf);
-      if (fsBuf) gl.deleteBuffer(fsBuf);
-      if (maskProg) gl.deleteProgram(maskProg);
-      if (washProg) gl.deleteProgram(washProg);
+      if (meshBuf) {
+        gl.deleteBuffer(meshBuf);
+        meshBuf = null;
+      }
+      if (fsBuf) {
+        gl.deleteBuffer(fsBuf);
+        fsBuf = null;
+      }
+      if (maskShaders) {
+        gl.deleteShader(maskShaders[0]);
+        gl.deleteShader(maskShaders[1]);
+        maskShaders = null;
+      }
+      if (maskProg) {
+        gl.deleteProgram(maskProg);
+        maskProg = null;
+      }
+      if (washShaders) {
+        gl.deleteShader(washShaders[0]);
+        gl.deleteShader(washShaders[1]);
+        washShaders = null;
+      }
+      if (washProg) {
+        gl.deleteProgram(washProg);
+        washProg = null;
+      }
     },
   };
 
