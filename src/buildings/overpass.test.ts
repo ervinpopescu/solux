@@ -87,6 +87,83 @@ describe('parseObstructions', () => {
     });
     expect(obs).toEqual([]);
   });
+
+  it('skips null and non-object elements without aborting parsing', () => {
+    const obs = parseObstructions({
+      elements: [
+        null,
+        undefined,
+        42,
+        'malformed',
+        {},
+        {
+          type: 'way',
+          tags: { building: 'yes', height: '15' },
+          geometry: [
+            { lat: 10, lon: 20 },
+            { lat: 10, lon: 21 },
+            { lat: 11, lon: 20 },
+          ],
+        },
+        null,
+      ],
+    });
+    expect(obs).toHaveLength(1);
+    expect(obs[0].kind).toBe('building');
+    expect(obs[0].heightMeters).toBe(15);
+  });
+
+  it('skips elements with malformed geometry or coordinates', () => {
+    const obs = parseObstructions({
+      elements: [
+        {
+          type: 'way',
+          tags: { building: 'yes', height: '10' },
+          geometry: [
+            { lat: 0, lon: 0 },
+            null as unknown as { lat: number; lon: number },
+            { lat: 1, lon: 1 },
+          ],
+        },
+        {
+          type: 'way',
+          tags: { building: 'yes', height: '10' },
+          geometry: [
+            { lat: 'not-a-number' as unknown as number, lon: 0 },
+            { lat: 0, lon: 1 },
+            { lat: 1, lon: 0 },
+          ],
+        },
+        {
+          type: 'way',
+          tags: { building: 'yes', height: '10' },
+          geometry: [
+            { lat: NaN, lon: 0 },
+            { lat: 0, lon: 1 },
+            { lat: 1, lon: 0 },
+          ],
+        },
+        {
+          type: 'node',
+          tags: { natural: 'tree' },
+          lat: NaN,
+          lon: 0,
+        },
+        {
+          type: 'node',
+          tags: { natural: 'tree' },
+          lat: 10,
+          lon: undefined,
+        },
+        {
+          type: 'way',
+          tags: { natural: 'wood' },
+          geometry: [{ lat: 0, lon: 0 }],
+        },
+      ],
+    });
+    expect(obs).toEqual([]);
+  });
 });
 
 describe('fetchObstructions', () => {

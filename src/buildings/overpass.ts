@@ -202,28 +202,57 @@ function synthesizeCanopy(lat: number, lng: number, radiusM: number): LatLng[] {
   return vertices;
 }
 
+function parseGeometry(rawGeom: unknown): LatLng[] | null {
+  if (!Array.isArray(rawGeom) || rawGeom.length < 3) return null;
+  const pts: LatLng[] = [];
+  for (const p of rawGeom) {
+    if (!p || typeof p !== 'object') return null;
+    const { lat, lon } = p as { lat?: unknown; lon?: unknown };
+    if (
+      typeof lat !== 'number' ||
+      typeof lon !== 'number' ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lon)
+    ) {
+      return null;
+    }
+    pts.push({ lat, lng: lon });
+  }
+  return pts.length >= 3 ? pts : null;
+}
+
 export function parseObstructions(raw: unknown): Obstruction[] {
-  const elements = (raw as { elements?: Element[] } | undefined)?.elements;
+  const elements = (raw as { elements?: unknown[] } | undefined)?.elements;
   if (!Array.isArray(elements)) return [];
 
   const obstructions: Obstruction[] = [];
-  for (const el of elements) {
-    const tags = el.tags ?? {};
+  for (const item of elements) {
+    if (!item || typeof item !== 'object') continue;
+    const el = item as Element;
+    const tags = el.tags && typeof el.tags === 'object' ? el.tags : {};
 
     if (el.type === 'way' && tags['building']) {
       // ── Building way ────────────────────────────────────────────────────
-      if (!el.geometry || el.geometry.length < 3) continue;
+      const pts = parseGeometry(el.geometry);
+      if (!pts) continue;
       const h = deriveHeight(tags);
       if (h === null) continue;
       obstructions.push({
         kind: 'building',
-        geometry: el.geometry.map((p) => ({ lat: p.lat, lng: p.lon })),
+        geometry: pts,
         heightMeters: h.value,
         heightFromTag: h.fromTag,
       });
     } else if (el.type === 'node' && tags['natural'] === 'tree') {
       // ── Single tree node ─────────────────────────────────────────────────
-      if (el.lat === undefined || el.lon === undefined) continue;
+      if (
+        typeof el.lat !== 'number' ||
+        typeof el.lon !== 'number' ||
+        !Number.isFinite(el.lat) ||
+        !Number.isFinite(el.lon)
+      ) {
+        continue;
+      }
       const h = deriveTreeHeight(tags, 'node');
       const crownDiam = parseFloat(tags['crown_diameter'] ?? '');
       const radiusM = Number.isFinite(crownDiam) && crownDiam > 0 ? crownDiam / 2 : h.value * 0.25;
@@ -235,10 +264,11 @@ export function parseObstructions(raw: unknown): Obstruction[] {
       });
     } else if (el.type === 'way' && (tags['natural'] === 'wood' || tags['landuse'] === 'forest')) {
       // ── Wooded area way ──────────────────────────────────────────────────
-      if (!el.geometry || el.geometry.length < 3) continue;
+      const rawPts = parseGeometry(el.geometry);
+      if (!rawPts) continue;
       const h = deriveTreeHeight(tags, 'way');
 
-      let pts = el.geometry.map((p) => ({ lat: p.lat, lng: p.lon }));
+      let pts = rawPts;
       // Mitigation: large forest polygons can contain thousands of vertices,
       // causing main-thread jank in earcut and the horizon edge-sampler.
       // Cap at 200 vertices via simple uniform subsampling.
