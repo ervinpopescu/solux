@@ -15,6 +15,13 @@ describe('useSolarData', () => {
     expect(result.current).toBeNull();
   });
 
+  it('returns null for malformed or non-calendar dates', () => {
+    expect(renderHook(() => useSolarData(LONDON, 'not-a-date')).result.current).toBeNull();
+    expect(renderHook(() => useSolarData(LONDON, '2024-99-99')).result.current).toBeNull();
+    expect(renderHook(() => useSolarData(LONDON, '2023-02-29')).result.current).toBeNull();
+    expect(renderHook(() => useSolarData(LONDON, '2024-04-31')).result.current).toBeNull();
+  });
+
   it('computes solar times for a pin and date', () => {
     const { result } = renderHook(() => useSolarData(LONDON, '2024-06-21'));
     expect(result.current).not.toBeNull();
