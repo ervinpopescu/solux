@@ -1,5 +1,6 @@
 import * as SunCalc from 'suncalc';
 import type { LatLng, SolarTimes, TimeWindow } from '../types';
+import { ianaZoneFor } from '../timezone/lookup';
 
 // Visual radius of the arc in metres from the pin. At city zoom + 45° pitch
 // this floats the arc at a comfortable height above rooftop level.
@@ -99,23 +100,164 @@ export function classifyPhase(t: Date, times: SolarTimes): ArcPhase {
 
 // ── Arc sample building ────────────────────────────────────────────────────
 
+interface ZoneOffsetHelper {
+  getOffsetMs(date: Date): number;
+  dateForMinuteOfDay(dayStartUtc: Date, minuteOfDay: number): Date;
+}
+
+function getZoneHelper(timeZone: string): ZoneOffsetHelper {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false,
+  });
+
+  function getOffsetMs(date: Date): number {
+    const parts = dtf.formatToParts(date);
+    let year = 0,
+      month = 0,
+      day = 0,
+      hour = 0,
+      minute = 0,
+      second = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      const val = parseInt(p.value, 10);
+      switch (p.type) {
+        case 'year':
+          year = val;
+          break;
+        case 'month':
+          month = val;
+          break;
+        case 'day':
+          day = val;
+          break;
+        case 'hour':
+          hour = val === 24 ? 0 : val;
+          break;
+        case 'minute':
+          minute = val;
+          break;
+        case 'second':
+          second = val;
+          break;
+      }
+    }
+    const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+    return localAsUtc - date.getTime();
+  }
+
+  function getLocalDateParts(date: Date): { year: number; month: number; day: number } {
+    const parts = dtf.formatToParts(date);
+    let year = 0,
+      month = 0,
+      day = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      const val = parseInt(p.value, 10);
+      if (p.type === 'year') year = val;
+      else if (p.type === 'month') month = val;
+      else if (p.type === 'day') day = val;
+    }
+    return { year, month, day };
+  }
+
+  function dateForMinuteOfDay(dayStartUtc: Date, minuteOfDay: number): Date {
+    const { year, month, day } = getLocalDateParts(dayStartUtc);
+    const baseLocalMs = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
+    const targetLocalMs = baseLocalMs + minuteOfDay * 60_000;
+    const offsetStart = getOffsetMs(dayStartUtc);
+    let utcMs = targetLocalMs - offsetStart;
+    const offset = getOffsetMs(new Date(utcMs));
+    utcMs = targetLocalMs - offset;
+    const refined = getOffsetMs(new Date(utcMs));
+    if (refined !== offset) {
+      utcMs = targetLocalMs - refined;
+    }
+    return new Date(utcMs);
+  }
+
+  return { getOffsetMs, dateForMinuteOfDay };
+}
+
+/**
+ * Resolves a local wall-clock minute of day (0..1439) to the corresponding UTC Date instant,
+ * correctly accounting for daylight saving time (DST) transitions (23-hour spring-forward
+ * or 25-hour fall-back days).
+ */
+export function dateForMinuteOfDay(
+  dayStartUtc: Date,
+  minuteOfDay: number,
+  timeZone?: string,
+): Date {
+  if (!timeZone || timeZone === 'UTC') {
+    return new Date(dayStartUtc.getTime() + minuteOfDay * 60_000);
+  }
+  try {
+    const helper = getZoneHelper(timeZone);
+    const offsetStart = helper.getOffsetMs(dayStartUtc);
+    const estEndUtc = new Date(dayStartUtc.getTime() + 25 * 3600_000);
+    const offsetEnd = helper.getOffsetMs(estEndUtc);
+    if (offsetStart === offsetEnd) {
+      return new Date(dayStartUtc.getTime() + minuteOfDay * 60_000);
+    }
+    return helper.dateForMinuteOfDay(dayStartUtc, minuteOfDay);
+  } catch {
+    return new Date(dayStartUtc.getTime() + minuteOfDay * 60_000);
+  }
+}
+
+/**
+ * Creates a resolver mapping local wall-clock minuteOfDay to UTC Date instants,
+ * short-circuiting to linear minute offsets on days without DST transitions.
+ */
+export function createMinuteToUtcResolver(
+  dayStartUtc: Date,
+  timeZone?: string,
+): (minuteOfDay: number) => Date {
+  if (!timeZone || timeZone === 'UTC') {
+    return (m: number) => new Date(dayStartUtc.getTime() + m * 60_000);
+  }
+  try {
+    const helper = getZoneHelper(timeZone);
+    const offsetStart = helper.getOffsetMs(dayStartUtc);
+    const estEndUtc = new Date(dayStartUtc.getTime() + 25 * 3600_000);
+    const offsetEnd = helper.getOffsetMs(estEndUtc);
+    if (offsetStart === offsetEnd) {
+      return (m: number) => new Date(dayStartUtc.getTime() + m * 60_000);
+    }
+    return (m: number) => helper.dateForMinuteOfDay(dayStartUtc, m);
+  } catch {
+    return (m: number) => new Date(dayStartUtc.getTime() + m * 60_000);
+  }
+}
+
 /**
  * Samples the sun's position every `STEP_MIN` minutes across the day and
  * returns one `ArcSample` per above-horizon position.
  *
  * @param dayStartUtc - UTC instant corresponding to local midnight at the pin.
- *   Must be the start of the local day (midnight), not noon or any other offset;
- *   the function samples exactly 1440 minutes (24 h) forward from this instant.
+ * @param solarTimes - Solar phase timestamps for the day.
+ * @param timeZone - Optional IANA timezone identifier; defaults to ianaZoneFor(pin).
  */
 export function buildArcSamples(
   pin: LatLng,
   dayStartUtc: Date,
   solarTimes: SolarTimes,
+  timeZone?: string,
 ): ArcSample[] {
+  const zone = timeZone ?? ianaZoneFor(pin);
+  const resolve = createMinuteToUtcResolver(dayStartUtc, zone);
   const samples: ArcSample[] = [];
 
   for (let m = 0; m < 1440; m += STEP_MIN) {
-    const t = new Date(dayStartUtc.getTime() + m * 60_000);
+    const t = resolve(m);
     const pos = sunPositionRadians(t, pin);
     if (pos.altitude <= 0) continue;
 
@@ -140,8 +282,10 @@ export function sunPositionAtMinute(
   pin: LatLng,
   dayStartUtc: Date,
   minuteOfDay: number,
+  timeZone?: string,
 ): [number, number, number] | null {
-  const t = new Date(dayStartUtc.getTime() + minuteOfDay * 60_000);
+  const zone = timeZone ?? ianaZoneFor(pin);
+  const t = dateForMinuteOfDay(dayStartUtc, minuteOfDay, zone);
   const pos = sunPositionRadians(t, pin);
   if (pos.altitude <= 0) return null;
   return sunToThreeXYZ(pos.azimuth, pos.altitude);

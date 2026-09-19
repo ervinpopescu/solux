@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { sunToThreeXYZ, classifyPhase, buildArcSamples, buildArcMarkers } from './arcGeometry';
+import {
+  sunToThreeXYZ,
+  classifyPhase,
+  buildArcSamples,
+  buildArcMarkers,
+  sunPositionAtMinute,
+  dateForMinuteOfDay,
+} from './arcGeometry';
 import type { SolarTimes } from '../types';
 
 // ── sunToThreeXYZ ──────────────────────────────────────────────────────────
@@ -160,5 +167,80 @@ describe('buildArcMarkers', () => {
     const noSunset: SolarTimes = { ...TIMES, sunset: null };
     const markers = buildArcMarkers(LONDON, noSunset);
     expect(markers.map((m) => m.kind)).toEqual(['sunrise', 'noon']);
+  });
+});
+
+// ── DST transitions & wall-clock minute mapping ──────────────────────────────
+
+describe('dateForMinuteOfDay and DST transitions', () => {
+  const LONDON = { lat: 51.5074, lng: -0.1278 };
+  const ZONE = 'Europe/London';
+
+  it('maps wall-clock minutes correctly on spring-forward transition (23-hour day)', () => {
+    // In London on 2024-03-31, clocks jump from 01:00 GMT to 02:00 BST at 01:00 UTC.
+    // Local midnight is 00:00 GMT = 00:00 UTC.
+    const dayStartUtc = new Date('2024-03-31T00:00:00.000Z');
+
+    const m0 = dateForMinuteOfDay(dayStartUtc, 0, ZONE);
+    expect(m0.toISOString()).toBe('2024-03-31T00:00:00.000Z');
+
+    // Local 03:00 (m=180): BST is UTC+1, so 03:00 BST = 02:00 UTC (not 03:00 UTC)
+    const m180 = dateForMinuteOfDay(dayStartUtc, 180, ZONE);
+    expect(m180.toISOString()).toBe('2024-03-31T02:00:00.000Z');
+
+    // Local 12:00 (m=720): 12:00 BST = 11:00 UTC
+    const m720 = dateForMinuteOfDay(dayStartUtc, 720, ZONE);
+    expect(m720.toISOString()).toBe('2024-03-31T11:00:00.000Z');
+
+    // Local 23:55 (m=1435): 23:55 BST = 22:55 UTC
+    const m1435 = dateForMinuteOfDay(dayStartUtc, 1435, ZONE);
+    expect(m1435.toISOString()).toBe('2024-03-31T22:55:00.000Z');
+  });
+
+  it('maps wall-clock minutes correctly on fall-back transition (25-hour day)', () => {
+    // In London on 2024-10-27, clocks fall back from 02:00 BST to 01:00 GMT at 01:00 UTC.
+    // Local midnight is 00:00 BST = 2024-10-26T23:00:00.000Z.
+    const dayStartUtc = new Date('2024-10-26T23:00:00.000Z');
+
+    const m0 = dateForMinuteOfDay(dayStartUtc, 0, ZONE);
+    expect(m0.toISOString()).toBe('2024-10-26T23:00:00.000Z');
+
+    // Local 02:00 (m=120): after the switch to GMT (UTC+0), 02:00 GMT = 02:00 UTC
+    const m120 = dateForMinuteOfDay(dayStartUtc, 120, ZONE);
+    expect(m120.toISOString()).toBe('2024-10-27T02:00:00.000Z');
+
+    // Local 12:00 (m=720): 12:00 GMT = 12:00 UTC
+    const m720 = dateForMinuteOfDay(dayStartUtc, 720, ZONE);
+    expect(m720.toISOString()).toBe('2024-10-27T12:00:00.000Z');
+
+    // Local 23:55 (m=1435): 23:55 GMT = 23:55 UTC (does not omit the 23:00 hour)
+    const m1435 = dateForMinuteOfDay(dayStartUtc, 1435, ZONE);
+    expect(m1435.toISOString()).toBe('2024-10-27T23:55:00.000Z');
+  });
+
+  it('evaluates sun position at local wall-clock minute on a DST transition day', () => {
+    // London 2024-03-31 spring forward: solar noon in London is ~13:04 BST (12:04 UTC).
+    const dayStartUtc = new Date('2024-03-31T00:00:00.000Z');
+
+    // At m=780 (13:00 local wall clock), sun is near peak elevation.
+    const pos13 = sunPositionAtMinute(LONDON, dayStartUtc, 780, ZONE);
+    expect(pos13).not.toBeNull();
+    // At midnight local (m=0), sun is below horizon.
+    const pos0 = sunPositionAtMinute(LONDON, dayStartUtc, 0, ZONE);
+    expect(pos0).toBeNull();
+  });
+
+  it('builds samples across a DST transition day', () => {
+    const dayStartUtc = new Date('2024-03-31T00:00:00.000Z');
+    const springTimes: SolarTimes = {
+      ...TIMES,
+      sunrise: new Date('2024-03-31T05:40:00Z'),
+      sunset: new Date('2024-03-31T18:30:00Z'),
+      solarNoon: new Date('2024-03-31T12:05:00Z'),
+    };
+    const samples = buildArcSamples(LONDON, dayStartUtc, springTimes, ZONE);
+    expect(samples.length).toBeGreaterThan(50);
+    expect(samples.every((s) => s.yM > 0)).toBe(true);
+    expect(samples.every((s) => s.minuteOfDay >= 0 && s.minuteOfDay < 1440)).toBe(true);
   });
 });
