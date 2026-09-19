@@ -205,8 +205,14 @@ export function createShadowLayer(
     renderingMode: '3d',
 
     onAdd(map, glCtx) {
+      if (
+        typeof WebGL2RenderingContext === 'undefined' ||
+        !(glCtx instanceof WebGL2RenderingContext)
+      ) {
+        return;
+      }
       storedMap = map;
-      gl = glCtx as WebGL2RenderingContext;
+      gl = glCtx;
 
       const mask = linkProgram(gl, MASK_VERT, MASK_FRAG);
       const wash = linkProgram(gl, WASH_VERT, WASH_FRAG);

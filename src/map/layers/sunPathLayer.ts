@@ -241,8 +241,14 @@ export function createSunPathLayer(
     renderingMode: '3d',
 
     onAdd(map, glCtx) {
+      if (
+        typeof WebGL2RenderingContext === 'undefined' ||
+        !(glCtx instanceof WebGL2RenderingContext)
+      ) {
+        return;
+      }
       storedMap = map;
-      gl = glCtx as WebGL2RenderingContext;
+      gl = glCtx;
 
       vertShader = compileShader(gl, gl.VERTEX_SHADER, VERT);
       fragShader = compileShader(gl, gl.FRAGMENT_SHADER, FRAG);
@@ -401,6 +407,7 @@ export function createSunPathLayer(
     },
 
     onRemove() {
+      if (!gl) return;
       arcBufs?.forEach((b) => gl.deleteBuffer(b));
       if (sphereBuf) gl.deleteBuffer(sphereBuf);
       if (markerBuf) gl.deleteBuffer(markerBuf);

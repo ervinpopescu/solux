@@ -36,6 +36,7 @@ import {
   createTileShadowRefreshGate,
   shouldScheduleTileShadowSource,
 } from './tileShadowRefresh';
+import { isWebGL2Supported } from './webglSupport';
 
 const OPENMAPTILES_SOURCE_ID = 'openmaptiles';
 const BUILDING_LAYER_ID = 'solux-buildings-3d';
@@ -400,7 +401,7 @@ export default function MapLibreView({
 
     function addShadows() {
       const m = mapRef.current;
-      if (cancelled || !m) return;
+      if (cancelled || !m || !isWebGL2Supported(m)) return;
       if (m.getLayer(SHADOW_LAYER_ID)) m.removeLayer(SHADOW_LAYER_ID);
       const handle = createShadowLayer(pin!, (vertexCount) => {
         const container = containerRef.current;
@@ -546,7 +547,7 @@ export default function MapLibreView({
 
     function addArc() {
       const m = mapRef.current;
-      if (cancelled || !m) return;
+      if (cancelled || !m || !isWebGL2Supported(m)) return;
       if (m.getLayer(SUN_PATH_LAYER_ID)) m.removeLayer(SUN_PATH_LAYER_ID);
       const handle = createSunPathLayer(pin!, dayStartUtc!, solarTimes!);
       m.addLayer(handle.customLayer);
