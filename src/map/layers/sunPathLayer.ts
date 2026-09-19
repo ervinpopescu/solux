@@ -210,6 +210,8 @@ export function createSunPathLayer(
   // ── WebGL state ───────────────────────────────────────────────────────────
 
   let gl: WebGL2RenderingContext;
+  let vertShader: WebGLShader | null = null;
+  let fragShader: WebGLShader | null = null;
   let prog: WebGLProgram | null = null;
   let arcBufs: WebGLBuffer[];
   let sphereBuf: WebGLBuffer;
@@ -242,25 +244,41 @@ export function createSunPathLayer(
       storedMap = map;
       gl = glCtx as WebGL2RenderingContext;
 
-      const vert = compileShader(gl, gl.VERTEX_SHADER, VERT);
-      const frag = compileShader(gl, gl.FRAGMENT_SHADER, FRAG);
-      if (!gl.getShaderParameter(vert, gl.COMPILE_STATUS)) {
-        console.error('[solux] vertex shader:', gl.getShaderInfoLog(vert));
+      vertShader = compileShader(gl, gl.VERTEX_SHADER, VERT);
+      fragShader = compileShader(gl, gl.FRAGMENT_SHADER, FRAG);
+      if (!gl.getShaderParameter(vertShader, gl.COMPILE_STATUS)) {
+        console.error('[solux] vertex shader:', gl.getShaderInfoLog(vertShader));
+        gl.deleteShader(vertShader);
+        gl.deleteShader(fragShader);
+        vertShader = null;
+        fragShader = null;
         return;
       }
-      if (!gl.getShaderParameter(frag, gl.COMPILE_STATUS)) {
-        console.error('[solux] fragment shader:', gl.getShaderInfoLog(frag));
+      if (!gl.getShaderParameter(fragShader, gl.COMPILE_STATUS)) {
+        console.error('[solux] fragment shader:', gl.getShaderInfoLog(fragShader));
+        gl.deleteShader(vertShader);
+        gl.deleteShader(fragShader);
+        vertShader = null;
+        fragShader = null;
         return;
       }
 
       const p = gl.createProgram()!;
-      gl.attachShader(p, vert);
-      gl.attachShader(p, frag);
+      gl.attachShader(p, vertShader);
+      gl.attachShader(p, fragShader);
       gl.linkProgram(p);
       if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
         console.error('[solux] program link:', gl.getProgramInfoLog(p));
+        gl.deleteProgram(p);
+        gl.deleteShader(vertShader);
+        gl.deleteShader(fragShader);
+        vertShader = null;
+        fragShader = null;
         return;
       }
+
+      gl.deleteShader(vertShader);
+      gl.deleteShader(fragShader);
 
       prog = p;
       aPos = gl.getAttribLocation(prog, 'a_pos');
@@ -386,7 +404,18 @@ export function createSunPathLayer(
       arcBufs?.forEach((b) => gl.deleteBuffer(b));
       if (sphereBuf) gl.deleteBuffer(sphereBuf);
       if (markerBuf) gl.deleteBuffer(markerBuf);
-      if (prog) gl.deleteProgram(prog);
+      if (vertShader) {
+        gl.deleteShader(vertShader);
+        vertShader = null;
+      }
+      if (fragShader) {
+        gl.deleteShader(fragShader);
+        fragShader = null;
+      }
+      if (prog) {
+        gl.deleteProgram(prog);
+        prog = null;
+      }
     },
   };
 
