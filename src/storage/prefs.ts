@@ -30,13 +30,22 @@ export const DEFAULT_PREFS: Prefs = {
 // Prefs object and fall back to defaults for anything weird. This protects
 // against e.g. a future schema change being read by an older client.
 function isLatLng(v: unknown): v is LatLng {
+  if (
+    typeof v !== 'object' ||
+    v === null ||
+    typeof (v as LatLng).lat !== 'number' ||
+    typeof (v as LatLng).lng !== 'number'
+  ) {
+    return false;
+  }
+  const { lat, lng } = v as LatLng;
   return (
-    typeof v === 'object' &&
-    v !== null &&
-    typeof (v as LatLng).lat === 'number' &&
-    typeof (v as LatLng).lng === 'number' &&
-    Number.isFinite((v as LatLng).lat) &&
-    Number.isFinite((v as LatLng).lng)
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
   );
 }
 

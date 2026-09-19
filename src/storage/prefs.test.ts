@@ -41,4 +41,34 @@ describe('prefs storage', () => {
     );
     expect(loadPrefs().pin).toBeNull();
   });
+
+  it('drops a pin with out-of-range coordinates', () => {
+    window.localStorage.setItem(
+      'solux:prefs:v1',
+      JSON.stringify({ pin: { lat: 999, lng: 999 }, date: '', displayMode: 'card' }),
+    );
+    expect(loadPrefs().pin).toBeNull();
+
+    window.localStorage.setItem(
+      'solux:prefs:v1',
+      JSON.stringify({ pin: { lat: -90.1, lng: 0 }, date: '', displayMode: 'card' }),
+    );
+    expect(loadPrefs().pin).toBeNull();
+
+    window.localStorage.setItem(
+      'solux:prefs:v1',
+      JSON.stringify({ pin: { lat: 0, lng: 180.1 }, date: '', displayMode: 'card' }),
+    );
+    expect(loadPrefs().pin).toBeNull();
+  });
+
+  it('preserves valid boundary coordinates', () => {
+    const boundaryPrefs: Prefs = {
+      pin: { lat: -90, lng: 180 },
+      date: '',
+      displayMode: 'card',
+    };
+    savePrefs(boundaryPrefs);
+    expect(loadPrefs().pin).toEqual({ lat: -90, lng: 180 });
+  });
 });
