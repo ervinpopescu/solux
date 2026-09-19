@@ -64,7 +64,11 @@ describe('sunExposureAt', () => {
     // SunCalc reports an apparent altitude ~+0.10° due to atmospheric refraction,
     // but the true geometric altitude is ~-0.38° (solar center is below the true horizon).
     const preSunriseInstant = new Date('2024-06-21T03:47:00Z');
-    const { altitude: apparentAlt } = SunCalc.getPosition(preSunriseInstant, LONDON.lat, LONDON.lng);
+    const { altitude: apparentAlt } = SunCalc.getPosition(
+      preSunriseInstant,
+      LONDON.lat,
+      LONDON.lng,
+    );
     expect(apparentAlt).toBeGreaterThan(0);
 
     const exposure = sunExposureAt(LONDON, preSunriseInstant, null);
