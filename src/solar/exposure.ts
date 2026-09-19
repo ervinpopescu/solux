@@ -28,6 +28,38 @@ export type SunExposure =
   | { state: 'shadow'; sunAltitudeDeg: number; obstructionDeg: number; deficitDeg: number };
 
 /**
+ * Meeus 16.4 atmospheric refraction formula used by SunCalc v2, in radians.
+ * Valid for non-negative altitudes; clamped to 0 for negative altitudes.
+ */
+function astroRefractionRad(hRad: number): number {
+  const h = hRad < 0 ? 0 : hRad;
+  return 0.0002967 / Math.tan(h + 0.00312536 / (h + 0.08901179));
+}
+
+/**
+ * Convert SunCalc v2 apparent (refraction-corrected) altitude in degrees back to
+ * true geometric altitude in degrees.
+ *
+ * For geometric altitudes <= 0, SunCalc adds refraction at the horizon (R0) to the
+ * geometric altitude. For positive altitudes, it adds Meeus 16.4 refraction.
+ * Inverting this ensures that comparisons against the true horizon and geometric
+ * building obstruction profiles are physically consistent and never classify
+ * pre-dawn/post-dusk sun as "lit".
+ */
+export function apparentToGeometricAltitude(altitudeApparentDeg: number): number {
+  const hAppRad = altitudeApparentDeg * RAD;
+  const r0 = astroRefractionRad(0);
+  if (hAppRad <= r0) {
+    return (hAppRad - r0) * DEG;
+  }
+  let h = hAppRad - r0;
+  for (let i = 0; i < 6; i++) {
+    h = hAppRad - astroRefractionRad(h);
+  }
+  return h * DEG;
+}
+
+/**
  * Determine whether the pin is in direct sun or building shadow at `instant`.
  *
  * `profile` may be `null` while the building horizon is still loading (or when
@@ -42,13 +74,14 @@ export function sunExposureAt(
   profile: HorizonProfile | null,
 ): SunExposure {
   const { altitude, azimuth } = SunCalc.getPosition(instant, pin.lat, pin.lng);
-  // SunCalc 2 reports altitude and compass azimuth in degrees. The horizon
-  // profile still uses radians and the pre-v2 south-based azimuth convention.
-  const sunAltitudeDeg = altitude;
-  const altitudeRad = altitude * RAD;
+  // SunCalc 2 reports apparent altitude and compass azimuth in degrees.
+  // Invert refraction to obtain geometric altitude so that comparisons
+  // against the true horizon and geometric obstruction angles are consistent.
+  const geometricAltitudeDeg = apparentToGeometricAltitude(altitude);
+  const sunAltitudeDeg = geometricAltitudeDeg;
   const suncalcAzimuthRad = azimuth * RAD - Math.PI;
 
-  if (altitudeRad <= 0) {
+  if (sunAltitudeDeg <= 0) {
     return { state: 'below_horizon', sunAltitudeDeg };
   }
 
