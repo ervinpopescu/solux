@@ -124,6 +124,9 @@ export default function MapLibreView({
   const markerRef = useRef<Marker | null>(null);
   const popupRef = useRef<Popup | null>(null);
   const popupRootRef = useRef<Root | null>(null);
+  const popupClosedByUserRef = useRef(false);
+  const popupPinKeyRef = useRef<string | null>(null);
+  const programmaticCloseRef = useRef(false);
   const onPinRef = useRef(onPin);
   const sunPathRef = useRef<SunPathLayerHandle | null>(null);
   const shadowRef = useRef<ShadowLayerHandle | null>(null);
@@ -320,21 +323,50 @@ export default function MapLibreView({
   // ── Popup: update when content or pin changes ──────────────────────────
   useEffect(() => {
     const map = mapRef.current;
+    const currentPinKey = pin ? pinKey(pin) : null;
+    const pinChanged = currentPinKey !== popupPinKeyRef.current;
 
-    // Tear down any existing popup + React root.
-    popupRef.current?.remove();
-    popupRootRef.current?.unmount();
-    popupRef.current = null;
-    popupRootRef.current = null;
+    const removePopup = () => {
+      programmaticCloseRef.current = true;
+      try {
+        popupRef.current?.remove();
+        popupRootRef.current?.unmount();
+        popupRef.current = null;
+        popupRootRef.current = null;
+      } finally {
+        programmaticCloseRef.current = false;
+      }
+    };
 
-    if (!map || !pin || !popupContent) return;
+    if (pinChanged) {
+      popupPinKeyRef.current = currentPinKey;
+      popupClosedByUserRef.current = false;
+      removePopup();
+    }
+
+    if (!map || !pin || !popupContent) {
+      removePopup();
+      popupClosedByUserRef.current = false;
+      return;
+    }
+
+    // If popup is already mounted, re-render into existing root without recreating MapLibre Popup
+    if (popupRootRef.current && popupRef.current) {
+      popupRootRef.current.render(popupContent);
+      return;
+    }
+
+    // If user closed the popup for this pin, do not reopen on content updates
+    if (popupClosedByUserRef.current) {
+      return;
+    }
 
     const el = document.createElement('div');
     const root = createRoot(el);
     root.render(popupContent);
     popupRootRef.current = root;
 
-    popupRef.current = new Popup({
+    const popup = new Popup({
       closeOnClick: false,
       maxWidth: '320px',
       offset: [0, -44], // clear the marker tip
@@ -343,11 +375,16 @@ export default function MapLibreView({
       .setLngLat([pin.lng, pin.lat])
       .addTo(map);
 
-    popupRef.current.on('close', () => {
+    popup.on('close', () => {
+      if (!programmaticCloseRef.current) {
+        popupClosedByUserRef.current = true;
+      }
       popupRootRef.current?.unmount();
       popupRootRef.current = null;
       popupRef.current = null;
     });
+
+    popupRef.current = popup;
   }, [popupContent, pin]);
 
   // ── Building shadows: add/remove the layer when the pin changes ───────────

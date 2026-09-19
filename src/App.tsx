@@ -110,21 +110,24 @@ export default function App() {
   const effectiveTimes = useEffectiveSolarTimes(pin, solarTimes, horizon.profile);
 
   // The SolarInfo block is reused verbatim across all four display modes.
-  const info = (
-    <SolarInfo
-      times={solarTimes}
-      effective={effectiveTimes}
-      zone={pin ? zone : browserZone()}
-      latLng={pin}
-      date={effectiveDate}
-      horizon={horizon}
-    />
+  const info = useMemo(
+    () => (
+      <SolarInfo
+        times={solarTimes}
+        effective={effectiveTimes}
+        zone={pin ? zone : browserZone()}
+        latLng={pin}
+        date={effectiveDate}
+        horizon={horizon}
+      />
+    ),
+    [solarTimes, effectiveTimes, pin, zone, effectiveDate, horizon],
   );
 
   // Pick the wrapper for the current display mode. `popup` is special: the
   // content is rendered *inside* the MapLibre marker popup rather than as an
   // overlay sibling of the map.
-  const overlay = (() => {
+  const overlay = useMemo(() => {
     if (!pin) {
       // With no pin, default to a compact floating card (mobile: drawer)
       // showing the "click the map" prompt, regardless of the configured
@@ -152,10 +155,12 @@ export default function App() {
       case 'popup':
         return null; // rendered inside the marker
     }
-  })();
+  }, [pin, isMobile, info, displayMode]);
 
-  const popupContent =
-    pin && displayMode === 'popup' ? <MarkerPopup>{info}</MarkerPopup> : undefined;
+  const popupContent = useMemo(
+    () => (pin && displayMode === 'popup' ? <MarkerPopup>{info}</MarkerPopup> : undefined),
+    [pin, displayMode, info],
+  );
 
   return (
     <>
