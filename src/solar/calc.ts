@@ -47,7 +47,9 @@
 // normalize any Invalid Date values defensively so downstream code can branch
 // on presence instead of probing for NaN.
 
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import * as SunCalc from 'suncalc';
+import { ianaZoneFor } from '../timezone/lookup';
 import type { LatLng, SolarTimes, TimeWindow } from '../types';
 
 // Register the "soft light" elevation. SunCalc accepts custom sun-altitude
@@ -102,16 +104,47 @@ function makeWindow(
 }
 
 /**
+ * Anchor an input Date to local solar noon in the pinned location's timezone.
+ *
+ * SunCalc resolves day boundaries relative to the input date's solar transit,
+ * but uses geographic longitude rather than the political civil timezone. In
+ * locations that crossed the International Date Line into UTC+13/+14 (such as
+ * Kiritimati, Samoa, or Tonga) while retaining western longitudes, an instant
+ * anchored at 12:00 UTC falls on the subsequent civil calendar day, shifting
+ * SunCalc's calculated events forward by one day.
+ *
+ * Anchoring to local noon in the coordinate's resolved IANA timezone guarantees
+ * that SunCalc computes events for the intended civil day regardless of whether
+ * the caller passed a generic noon-UTC date or a zoned date.
+ */
+function anchorToLocalNoon(date: Date, latLng: LatLng): Date {
+  if (Number.isNaN(date.getTime())) return date;
+
+  const zone = ianaZoneFor(latLng);
+  const isNoonUtc =
+    date.getUTCHours() === 12 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0;
+
+  const iso = isNoonUtc
+    ? date.toISOString().slice(0, 10)
+    : formatInTimeZone(date, zone, 'yyyy-MM-dd');
+
+  return fromZonedTime(`${iso}T12:00:00`, zone);
+}
+
+/**
  * Compute solar phase times for a location/date.
  *
  * @param latLng  WGS-84 latitude/longitude in degrees.
- * @param date    Any `Date` on the target calendar day. SunCalc resolves the
- *                day boundaries using UTC noon at the given location, so the
- *                exact time-of-day of this input doesn't affect the result
- *                as long as it falls on the intended civil day at the pin.
+ * @param date    Any `Date` on the target calendar day. Anchored to local noon
+ *                in the coordinate's timezone so that the calculation reflects
+ *                the intended local civil day.
  */
 export function computeSolarTimes(latLng: LatLng, date: Date): SolarTimes {
-  const t = SunCalc.getTimes(date, latLng.lat, latLng.lng) as ExtendedTimes;
+  const anchorDate = anchorToLocalNoon(date, latLng);
+  const t = SunCalc.getTimes(anchorDate, latLng.lat, latLng.lng) as ExtendedTimes;
 
   return {
     sunrise: nullIfInvalid(t.sunrise),
@@ -157,13 +190,16 @@ export function computeSolarTimes(latLng: LatLng, date: Date): SolarTimes {
 }
 
 /**
- * Convenience: given an ISO `yyyy-mm-dd` string, build a `Date` that lands
- * unambiguously on that calendar day everywhere in the world. We anchor at
- * 12:00 UTC because no IANA timezone has an offset large enough to push a
- * noon-UTC instant into a different civil day. That makes this safe to feed
- * into `computeSolarTimes` regardless of the pin's local timezone.
+ * Convenience: given an ISO `yyyy-mm-dd` string, build a `Date` representing noon.
+ *
+ * When an optional coordinate or timezone identifier is provided, anchors to
+ * 12:00 local time in that timezone. When omitted, anchors at 12:00 UTC.
  */
-export function isoDateToNoonUtc(iso: string): Date {
+export function isoDateToNoonUtc(iso: string, zoneOrLatLng?: string | LatLng): Date {
+  if (zoneOrLatLng) {
+    const zone = typeof zoneOrLatLng === 'string' ? zoneOrLatLng : ianaZoneFor(zoneOrLatLng);
+    return fromZonedTime(`${iso}T12:00:00`, zone);
+  }
   // Expect "YYYY-MM-DD"; constructing with `T12:00:00Z` is portable across
   // Date implementations and avoids parsing-ambiguity warnings.
   return new Date(`${iso}T12:00:00Z`);

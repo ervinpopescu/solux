@@ -12,11 +12,14 @@
 //   - Tromso (69.6492, 18.9553) on 2024-06-21 (midnight sun → no sunset)
 
 import { describe, expect, it } from 'vitest';
+import { isoDateInZone } from '../util/zoneDate';
 import { computeSolarTimes, isoDateToNoonUtc } from './calc';
 
 const LONDON = { lat: 51.5074, lng: -0.1278 };
 const SYDNEY = { lat: -33.8688, lng: 151.2093 };
 const TROMSO = { lat: 69.6492, lng: 18.9553 };
+const KIRITIMATI = { lat: 1.87, lng: -157.4 };
+const SAMOA = { lat: -13.83, lng: -171.76 };
 
 describe('computeSolarTimes', () => {
   it('returns a sunrise and sunset for London on the June solstice', () => {
@@ -142,6 +145,38 @@ describe('computeSolarTimes', () => {
     // crossings, and our soft-light windows therefore correctly survive.
   });
 
+  it('anchors solar times to the requested local calendar day in UTC+14 (Kiritimati)', () => {
+    // Both standard isoDateToNoonUtc and coordinate-anchored dates must evaluate
+    // to the requested local civil calendar day (2024-06-14) without day shifting.
+    const timesFromUtcNoon = computeSolarTimes(KIRITIMATI, isoDateToNoonUtc('2024-06-14'));
+    const timesFromLocalNoon = computeSolarTimes(
+      KIRITIMATI,
+      isoDateToNoonUtc('2024-06-14', KIRITIMATI),
+    );
+
+    for (const times of [timesFromUtcNoon, timesFromLocalNoon]) {
+      expect(times.sunrise).not.toBeNull();
+      expect(times.sunset).not.toBeNull();
+      expect(times.solarNoon).not.toBeNull();
+
+      expect(isoDateInZone(times.sunrise!, 'Pacific/Kiritimati')).toBe('2024-06-14');
+      expect(isoDateInZone(times.sunset!, 'Pacific/Kiritimati')).toBe('2024-06-14');
+      expect(isoDateInZone(times.solarNoon!, 'Pacific/Kiritimati')).toBe('2024-06-14');
+      expect(isoDateInZone(times.civilDawn!, 'Pacific/Kiritimati')).toBe('2024-06-14');
+      expect(isoDateInZone(times.civilDusk!, 'Pacific/Kiritimati')).toBe('2024-06-14');
+    }
+  });
+
+  it('anchors solar times to the requested local calendar day in UTC+13 (Samoa)', () => {
+    const times = computeSolarTimes(SAMOA, isoDateToNoonUtc('2024-06-14'));
+
+    expect(times.sunrise).not.toBeNull();
+    expect(times.sunset).not.toBeNull();
+    expect(isoDateInZone(times.sunrise!, 'Pacific/Apia')).toBe('2024-06-14');
+    expect(isoDateInZone(times.sunset!, 'Pacific/Apia')).toBe('2024-06-14');
+    expect(isoDateInZone(times.solarNoon!, 'Pacific/Apia')).toBe('2024-06-14');
+  });
+
   it('isoDateToNoonUtc anchors at 12:00 UTC of the given calendar day', () => {
     const d = isoDateToNoonUtc('2026-06-14');
     expect(d.getUTCFullYear()).toBe(2026);
@@ -149,5 +184,14 @@ describe('computeSolarTimes', () => {
     expect(d.getUTCDate()).toBe(14);
     expect(d.getUTCHours()).toBe(12);
     expect(d.getUTCMinutes()).toBe(0);
+  });
+
+  it('isoDateToNoonUtc anchors at local noon when coordinate or timezone is provided', () => {
+    const dCoord = isoDateToNoonUtc('2024-06-14', KIRITIMATI);
+    expect(isoDateInZone(dCoord, 'Pacific/Kiritimati')).toBe('2024-06-14');
+    expect(dCoord.toISOString()).toBe('2024-06-13T22:00:00.000Z');
+
+    const dZone = isoDateToNoonUtc('2024-06-14', 'Pacific/Kiritimati');
+    expect(dZone.toISOString()).toBe('2024-06-13T22:00:00.000Z');
   });
 });
