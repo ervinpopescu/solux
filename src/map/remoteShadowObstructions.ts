@@ -9,7 +9,21 @@ export const MAX_REMOTE_SHADOW_RING_POINTS = 512;
 
 type IndexedObstruction = { obstruction: Obstruction; index: number };
 
-function obstructionRank(
+function unwrapLongitude(lng: number, referenceLng: number): number {
+  let delta = (lng - referenceLng) % 360;
+  if (delta > 180) delta -= 360;
+  else if (delta < -180) delta += 360;
+  return referenceLng + delta;
+}
+
+function canonicalLongitude(lng: number): number {
+  let normalized = (lng + 180) % 360;
+  if (normalized < 0) normalized += 360;
+  const canonical = normalized - 180;
+  return canonical === 0 ? 0 : canonical;
+}
+
+export function obstructionRank(
   pin: LatLng,
   value: IndexedObstruction,
 ): RankedItem<IndexedObstruction> | null {
@@ -21,19 +35,20 @@ function obstructionRank(
     return null;
   }
   let lat = 0;
-  let lng = 0;
+  let unwrappedLngSum = 0;
   for (const point of obstruction.geometry) {
     if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return null;
     lat += point.lat;
-    lng += point.lng;
+    unwrappedLngSum += unwrapLongitude(point.lng, pin.lng);
   }
   lat /= obstruction.geometry.length;
-  lng /= obstruction.geometry.length;
-  const [x, z] = lngLatToLocalMetres(pin, { lat, lng });
+  const avgUnwrappedLng = unwrappedLngSum / obstruction.geometry.length;
+  const [x, z] = lngLatToLocalMetres(pin, { lat, lng: avgUnwrappedLng });
+  const canonicalLng = canonicalLongitude(avgUnwrappedLng);
   return {
     value,
     distanceSquared: x * x + z * z,
-    key: `${obstruction.kind}:${lat.toFixed(7)},${lng.toFixed(7)}:${obstruction.heightMeters}:${obstruction.geometry.length}:${index}`,
+    key: `${obstruction.kind}:${lat.toFixed(7)},${canonicalLng.toFixed(7)}:${obstruction.heightMeters}:${obstruction.geometry.length}:${index}`,
   };
 }
 

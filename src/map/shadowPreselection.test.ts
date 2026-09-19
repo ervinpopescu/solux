@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_REMOTE_SHADOW_RING_POINTS,
   MAX_REMOTE_TREE_CASTERS_TO_PREPARE,
+  obstructionRank,
   prepareRemoteShadowCasters,
 } from './remoteShadowObstructions';
 import { selectNearestBounded } from './shadowPreselection';
@@ -117,6 +118,60 @@ describe('prepareRemoteShadowCasters', () => {
       })),
     };
     expect(prepareRemoteShadowCasters(PIN, [oversized])).toEqual([]);
+  });
+
+  it('unwraps antimeridian longitudes when ranking footprints adjacent to pin', () => {
+    const pin = { lat: 0, lng: 179.999 };
+    // Footprint straddling the antimeridian (~111m from pin)
+    const straddling: Obstruction = {
+      kind: 'building',
+      geometry: [
+        { lat: 0.001, lng: 179.998 },
+        { lat: 0.001, lng: -179.998 },
+        { lat: 0.002, lng: -179.998 },
+        { lat: 0.002, lng: 179.998 },
+      ],
+      heightMeters: 15,
+      heightFromTag: true,
+    };
+    // Footprint completely across the antimeridian (~220m from pin)
+    const acrossDateline: Obstruction = {
+      kind: 'tree',
+      geometry: [
+        { lat: 0.001, lng: -179.999 },
+        { lat: 0.001, lng: -179.998 },
+        { lat: 0.002, lng: -179.998 },
+        { lat: 0.002, lng: -179.999 },
+      ],
+      heightMeters: 10,
+      heightFromTag: false,
+    };
+    // Obstruction 5 km away on the same side of the dateline
+    const furtherAway: Obstruction = {
+      kind: 'building',
+      geometry: [
+        { lat: 0, lng: 179.95 },
+        { lat: 0, lng: 179.951 },
+        { lat: 0.001, lng: 179.951 },
+        { lat: 0.001, lng: 179.95 },
+      ],
+      heightMeters: 15,
+      heightFromTag: true,
+    };
+
+    const rankStraddling = obstructionRank(pin, { obstruction: straddling, index: 0 });
+    const rankAcross = obstructionRank(pin, { obstruction: acrossDateline, index: 1 });
+    const rankFurther = obstructionRank(pin, { obstruction: furtherAway, index: 2 });
+
+    expect(rankStraddling).not.toBeNull();
+    expect(rankAcross).not.toBeNull();
+    expect(rankFurther).not.toBeNull();
+
+    // Straddling and across-dateline obstructions should be ranked close to pin (< 500m distance)
+    expect(Math.sqrt(rankStraddling!.distanceSquared)).toBeLessThan(500);
+    expect(Math.sqrt(rankAcross!.distanceSquared)).toBeLessThan(500);
+    expect(rankStraddling!.distanceSquared).toBeLessThan(rankFurther!.distanceSquared);
+    expect(rankAcross!.distanceSquared).toBeLessThan(rankFurther!.distanceSquared);
   });
 });
 
