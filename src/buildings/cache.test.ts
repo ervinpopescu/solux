@@ -108,11 +108,114 @@ describe('saveProfile / loadProfile', () => {
 
   it('returns null when bucketsRad length is wrong', () => {
     const cell = gridCell(PIN);
-    const key = `solux:horizon:v4:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const key = `solux:horizon:v5:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
     window.localStorage.setItem(
       key,
       JSON.stringify({
         bucketsRad: [0, 1, 2], // wrong length
+        buildingCount: 1,
+        treeCount: 0,
+        insideForest: false,
+        radiusMeters: 1000,
+        centerLat: 51.505,
+        centerLng: -0.13,
+        fetchedAt: Date.now(),
+      }),
+    );
+    expect(loadProfile(PIN, 1000)).toBeNull();
+  });
+
+  it('returns null when fetchedAt is not a valid finite timestamp or is in the future', () => {
+    const cell = gridCell(PIN);
+    const key = `solux:horizon:v5:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const base = {
+      bucketsRad: new Array(360).fill(0),
+      buildingCount: 1,
+      treeCount: 0,
+      insideForest: false,
+      radiusMeters: 1000,
+      centerLat: 51.505,
+      centerLng: -0.13,
+    };
+
+    window.localStorage.setItem(key, JSON.stringify({ ...base, fetchedAt: 'not-a-date' }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+
+    window.localStorage.setItem(key, JSON.stringify({ ...base, fetchedAt: NaN }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ ...base, fetchedAt: Date.now() + 1_000_000 }),
+    );
+    expect(loadProfile(PIN, 1000)).toBeNull();
+  });
+
+  it('returns null when metadata fields are non-numeric or out of range', () => {
+    const cell = gridCell(PIN);
+    const key = `solux:horizon:v5:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const valid = {
+      bucketsRad: new Array(360).fill(0),
+      buildingCount: 10,
+      treeCount: 5,
+      insideForest: false,
+      radiusMeters: 1000,
+      centerLat: 51.505,
+      centerLng: -0.13,
+      fetchedAt: Date.now(),
+    };
+
+    // Invalid buildingCount
+    window.localStorage.setItem(key, JSON.stringify({ ...valid, buildingCount: -1 }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+    window.localStorage.setItem(key, JSON.stringify({ ...valid, buildingCount: 'many' }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+
+    // Invalid treeCount
+    window.localStorage.setItem(key, JSON.stringify({ ...valid, treeCount: -1 }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+    window.localStorage.setItem(key, JSON.stringify({ ...valid, treeCount: 'none' }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+
+    // Invalid radiusMeters
+    window.localStorage.setItem(key, JSON.stringify({ ...valid, radiusMeters: 0 }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+    window.localStorage.setItem(key, JSON.stringify({ ...valid, radiusMeters: -500 }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+
+    // Invalid coordinates
+    window.localStorage.setItem(key, JSON.stringify({ ...valid, centerLat: 95 }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+    window.localStorage.setItem(key, JSON.stringify({ ...valid, centerLng: 200 }));
+    expect(loadProfile(PIN, 1000)).toBeNull();
+  });
+
+  it('returns null when buckets contain non-numeric or NaN values', () => {
+    const cell = gridCell(PIN);
+    const key = `solux:horizon:v5:${cell.lat.toFixed(3)},${cell.lng.toFixed(3)},1000`;
+    const badBuckets: unknown[] = new Array(360).fill(0);
+    badBuckets[45] = 'not-a-number';
+
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({
+        bucketsRad: badBuckets,
+        buildingCount: 1,
+        treeCount: 0,
+        insideForest: false,
+        radiusMeters: 1000,
+        centerLat: 51.505,
+        centerLng: -0.13,
+        fetchedAt: Date.now(),
+      }),
+    );
+    expect(loadProfile(PIN, 1000)).toBeNull();
+
+    badBuckets[45] = null;
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({
+        bucketsRad: badBuckets,
         buildingCount: 1,
         treeCount: 0,
         insideForest: false,

@@ -44,17 +44,56 @@ type Serialized = {
   fetchedAt: number;
 };
 
+function isFiniteNumber(val: unknown): val is number {
+  return typeof val === 'number' && Number.isFinite(val);
+}
+
+function isValidTimestamp(fetchedAt: unknown): fetchedAt is number {
+  if (!isFiniteNumber(fetchedAt)) return false;
+  const now = Date.now();
+  return now - fetchedAt <= TTL_MS && fetchedAt <= now + 60_000;
+}
+
+function isFiniteCoordinate(val: unknown, min: number, max: number): val is number {
+  return isFiniteNumber(val) && val >= min && val <= max;
+}
+
+function isValidBuckets(buckets: unknown): buckets is number[] {
+  if (!Array.isArray(buckets) || buckets.length !== 360) return false;
+  for (let i = 0; i < 360; i++) {
+    if (!isFiniteNumber(buckets[i])) return false;
+  }
+  return true;
+}
+
 export function loadProfile(pin: LatLng, radius: number): HorizonProfile | null {
   try {
     const raw = window.localStorage.getItem(cacheKey(pin, radius));
     if (!raw) return null;
-    const obj = JSON.parse(raw) as Serialized;
-    if (Date.now() - obj.fetchedAt > TTL_MS) return null;
-    if (!Array.isArray(obj.bucketsRad) || obj.bucketsRad.length !== 360) return null;
+    const obj = JSON.parse(raw) as Partial<Serialized>;
+    if (!obj || typeof obj !== 'object') return null;
+
+    if (!isValidTimestamp(obj.fetchedAt)) return null;
+    if (!isFiniteNumber(obj.radiusMeters) || obj.radiusMeters <= 0) return null;
+    if (
+      !isFiniteCoordinate(obj.centerLat, -90, 90) ||
+      !isFiniteCoordinate(obj.centerLng, -180, 180)
+    ) {
+      return null;
+    }
+
+    if (!isFiniteNumber(obj.buildingCount) || obj.buildingCount < 0) return null;
+    const treeCount = obj.treeCount ?? 0;
+    if (!isFiniteNumber(treeCount) || treeCount < 0) return null;
+
+    if (obj.insideForest !== undefined && typeof obj.insideForest !== 'boolean') return null;
+
+    if (!isValidBuckets(obj.bucketsRad)) return null;
+
     return {
       bucketsRad: new Float32Array(obj.bucketsRad),
       buildingCount: obj.buildingCount,
-      treeCount: obj.treeCount ?? 0,
+      treeCount,
       insideForest: obj.insideForest ?? false,
       radiusMeters: obj.radiusMeters,
       centerLat: obj.centerLat,
