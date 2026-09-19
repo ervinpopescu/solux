@@ -26,6 +26,24 @@ describe('lngLatToLocalMetres', () => {
     expect(Math.abs(east)).toBeLessThan(0.001);
     expect(south).toBeCloseTo(-111.3, 0);
   });
+
+  it('normalizes longitude difference across the antimeridian', () => {
+    const pinNearEast: LatLng = { lat: 0, lng: 179.999 };
+    const pAcrossWest: LatLng = { lat: 0, lng: -179.999 };
+    const [east1, south1] = lngLatToLocalMetres(pinNearEast, pAcrossWest);
+    // Across 180°, -179.999 is +0.002° east of 179.999
+    expect(east1).toBeGreaterThan(200);
+    expect(east1).toBeLessThan(250);
+    expect(Math.abs(south1)).toBeLessThan(0.001);
+
+    const pinNearWest: LatLng = { lat: 0, lng: -179.999 };
+    const pAcrossEast: LatLng = { lat: 0, lng: 179.999 };
+    const [east2, south2] = lngLatToLocalMetres(pinNearWest, pAcrossEast);
+    // Across 180°, 179.999 is -0.002° west of -179.999
+    expect(east2).toBeLessThan(-200);
+    expect(east2).toBeGreaterThan(-250);
+    expect(Math.abs(south2)).toBeLessThan(0.001);
+  });
 });
 
 describe('sunShadowOffsetPerMetre', () => {

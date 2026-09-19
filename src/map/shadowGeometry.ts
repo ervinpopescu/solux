@@ -77,7 +77,10 @@ export type ShadowBuilding = {
  */
 export function lngLatToLocalMetres(pin: LatLng, p: LatLng): [number, number] {
   const latRad = (pin.lat * Math.PI) / 180;
-  const dLng = ((p.lng - pin.lng) * Math.PI) / 180;
+  let dLngDeg = p.lng - pin.lng;
+  while (dLngDeg > 180) dLngDeg -= 360;
+  while (dLngDeg < -180) dLngDeg += 360;
+  const dLng = (dLngDeg * Math.PI) / 180;
   const dLat = ((p.lat - pin.lat) * Math.PI) / 180;
   const east = dLng * Math.cos(latRad) * EARTH_RADIUS_M;
   const south = -dLat * EARTH_RADIUS_M;
