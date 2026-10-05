@@ -41,7 +41,7 @@
     "maplibre-gl": "^6.11.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "suncalc": "^2.0.2",
+    "suncalc": "^2.1.0",
     "three": "^0.186.0",
     "tz-lookup": "^6.1.25"
   },
