@@ -85,6 +85,94 @@ export function checkSymlinks(currentDir, rootDistDir = currentDir) {
  *
  * @param {string} distDir
  */
+function assertSafeTargetAncestor(targetDir) {
+  let current = path.resolve(targetDir);
+  const missing = [];
+  while (true) {
+    try {
+      fs.lstatSync(current);
+      break;
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+      missing.push(current);
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  const existing = [];
+  for (;;) {
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      throw new Error(`Target path ancestor "${current}" is not a real directory.`);
+    }
+    existing.push(current);
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return { missing, existing };
+}
+
+function assertSafeTargetEntry(targetPath, expectedType = 'file') {
+  let stat;
+  try {
+    stat = fs.lstatSync(targetPath);
+  } catch (error) {
+    if (error?.code === 'ENOENT') return;
+    throw error;
+  }
+  const valid = expectedType === 'directory' ? stat.isDirectory() : stat.isFile();
+  if (stat.isSymbolicLink() || !valid) {
+    throw new Error(`Unsafe existing target path "${targetPath}". Deployment rejected.`);
+  }
+}
+
+function assertSafeTarget(targetDir, distDir) {
+  assertSafeTargetAncestor(targetDir);
+  assertSafeTargetEntry(targetDir, 'directory');
+  const assetsDir = path.join(targetDir, 'assets');
+  assertSafeTargetEntry(assetsDir, 'directory');
+  const lifecycleSet = new Set(LIFECYCLE_FILES);
+  if (fs.existsSync(distDir)) {
+    for (const entry of fs.readdirSync(distDir)) {
+      if (entry === 'assets') {
+        continue;
+      }
+      const sourcePath = path.join(distDir, entry);
+      if (lifecycleSet.has(entry) || fs.lstatSync(sourcePath).isFile()) {
+        assertSafeTargetEntry(path.join(targetDir, entry));
+      }
+    }
+    if (fs.existsSync(assetsDir)) {
+      for (const entry of fs.readdirSync(path.join(distDir, 'assets'))) {
+        assertSafeTargetEntry(path.join(assetsDir, entry));
+      }
+    }
+  }
+}
+
+function copyAtomic(srcPath, destPath, fileMode) {
+  const tempPath = path.join(
+    path.dirname(destPath),
+    `.${path.basename(destPath)}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  );
+  try {
+    fs.copyFileSync(srcPath, tempPath, fs.constants.COPYFILE_EXCL);
+    fs.chmodSync(tempPath, fileMode);
+    fs.renameSync(tempPath, destPath);
+  } catch (err) {
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+    throw err;
+  }
+}
+
 export function validateDist(distDir) {
   if (!fs.existsSync(distDir)) {
     throw new Error(`Build directory "${distDir}" does not exist. Run "npm run build" first.`);
@@ -180,6 +268,7 @@ export function deploy(options = {}) {
   }
 
   validateDist(distDir);
+  assertSafeTarget(targetDir, distDir);
 
   const modeStr = dryRun ? ' (DRY RUN)' : '';
   log(`Starting Solux static deployment${modeStr}:`);
@@ -216,8 +305,7 @@ export function deploy(options = {}) {
     const srcAsset = path.join(distAssetsDir, file);
     const destAsset = path.join(targetAssetsDir, file);
     if (!dryRun) {
-      fs.copyFileSync(srcAsset, destAsset);
-      fs.chmodSync(destAsset, fileMode);
+      copyAtomic(srcAsset, destAsset, fileMode);
     } else {
       log(`[dry-run] Would copy hashed asset: assets/${file} -> ${destAsset}`);
     }
@@ -239,8 +327,7 @@ export function deploy(options = {}) {
     const stat = fs.statSync(srcPath);
     if (stat.isFile()) {
       if (!dryRun) {
-        fs.copyFileSync(srcPath, destPath);
-        fs.chmodSync(destPath, fileMode);
+        copyAtomic(srcPath, destPath, fileMode);
       } else {
         log(`[dry-run] Would copy static asset: ${entry} -> ${destPath}`);
       }
@@ -255,26 +342,8 @@ export function deploy(options = {}) {
   for (const file of LIFECYCLE_FILES) {
     const srcPath = path.join(distDir, file);
     const destPath = path.join(targetDir, file);
-    const tempPath = path.join(
-      targetDir,
-      `.${file}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-    );
-
     if (!dryRun) {
-      try {
-        fs.copyFileSync(srcPath, tempPath);
-        fs.chmodSync(tempPath, fileMode);
-        fs.renameSync(tempPath, destPath);
-      } catch (err) {
-        if (fs.existsSync(tempPath)) {
-          try {
-            fs.unlinkSync(tempPath);
-          } catch {
-            // ignore unlink error
-          }
-        }
-        throw err;
-      }
+      copyAtomic(srcPath, destPath, fileMode);
     } else {
       log(`[dry-run] Would atomically promote lifecycle file: ${file} -> ${destPath}`);
     }
