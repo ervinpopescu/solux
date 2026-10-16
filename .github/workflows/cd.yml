@@ -1,0 +1,100 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+# A newer main push supersedes an older deployment. The receiver also rejects
+# an already-seen run id, covering an SSH process that outlives cancellation.
+concurrency:
+  group: cd-main
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION_FILE: .nvmrc
+
+jobs:
+  verify:
+    name: Verify and package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: ${{ env.NODE_VERSION_FILE }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc -b
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run build
+      - run: npm run deploy:check
+      - name: Package validated build
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_RUN_ID: ${{ github.run_id }}
+          DEPLOY_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -eu
+          payload="$RUNNER_TEMP/solux-payload.tar.gz"
+          metadata="$RUNNER_TEMP/solux-deploy.json"
+          printf '{"repository":"%s","sha":"%s","runId":%s}\n' \
+            "$DEPLOY_REPOSITORY" "$DEPLOY_SHA" "$DEPLOY_RUN_ID" > "$metadata"
+          tar --sort=name --owner=0 --group=0 --numeric-owner -czf "$payload" \
+            -C "$RUNNER_TEMP" solux-deploy.json \
+            -C "$GITHUB_WORKSPACE/dist" .
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: solux-deploy-payload
+          path: ${{ runner.temp }}/solux-payload.tar.gz
+          if-no-files-found: error
+          retention-days: 2
+
+  deploy:
+    name: Deliver to production
+    needs: verify
+    runs-on: ubuntu-latest
+    # Secrets are scoped to this trusted main-only job, never to PR workflows.
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v5.0.0
+        with:
+          name: solux-deploy-payload
+          path: ${{ runner.temp }}/solux-payload
+      - name: Configure pinned SSH host key
+        env:
+          HOST_KEY: ${{ vars.SOLUX_DEPLOY_HOST_KEY }}
+        run: |
+          set -eu
+          test -n "$HOST_KEY"
+          umask 077
+          printf '%s\n' "$HOST_KEY" > "$RUNNER_TEMP/known_hosts"
+      - name: Deliver payload over forced-command SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SOLUX_DEPLOY_PRIVATE_KEY }}
+          PAYLOAD: ${{ runner.temp }}/solux-payload/solux-payload.tar.gz
+          HOST: ssh.archnet.lol
+        run: |
+          set -eu
+          test -n "$DEPLOY_KEY"
+          umask 077
+          key="$RUNNER_TEMP/deploy_key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          ssh -i "$key" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" \
+            -o RequestTTY=no \
+            -o ClearAllForwardings=yes \
+            solux-deploy@"$HOST" < "$PAYLOAD"
+          rm -f "$key"

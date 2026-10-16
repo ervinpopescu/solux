@@ -6,6 +6,7 @@ tmp
 .DS_Store
 *.log
 coverage
+.vitest
 .vscode
 .idea
 .git-workflow
