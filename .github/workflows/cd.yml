@@ -21,10 +21,10 @@ jobs:
     name: Verify and package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: ${{ env.NODE_VERSION_FILE }}
           cache: npm
@@ -43,13 +43,13 @@ jobs:
         run: |
           set -eu
           payload="$RUNNER_TEMP/solux-payload.tar.gz"
-          metadata="$RUNNER_TEMP/solux-deploy.json"
+          metadata="$RUNNER_TEMP/.solux-deploy.json"
           printf '{"repository":"%s","sha":"%s","runId":%s}\n' \
             "$DEPLOY_REPOSITORY" "$DEPLOY_SHA" "$DEPLOY_RUN_ID" > "$metadata"
           tar --sort=name --owner=0 --group=0 --numeric-owner -czf "$payload" \
-            -C "$RUNNER_TEMP" solux-deploy.json \
+            -C "$RUNNER_TEMP" .solux-deploy.json \
             -C "$GITHUB_WORKSPACE/dist" .
-      - uses: actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: solux-deploy-payload
           path: ${{ runner.temp }}/solux-payload.tar.gz
@@ -65,7 +65,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/download-artifact@v5.0.0
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: solux-deploy-payload
           path: ${{ runner.temp }}/solux-payload
@@ -87,6 +87,8 @@ jobs:
           test -n "$DEPLOY_KEY"
           umask 077
           key="$RUNNER_TEMP/deploy_key"
+          cleanup() { rm -f "$key" "$RUNNER_TEMP/known_hosts"; }
+          trap cleanup EXIT
           printf '%s\n' "$DEPLOY_KEY" > "$key"
           chmod 600 "$key"
           ssh -i "$key" \
@@ -97,4 +99,20 @@ jobs:
             -o RequestTTY=no \
             -o ClearAllForwardings=yes \
             solux-deploy@"$HOST" < "$PAYLOAD"
-          rm -f "$key"
+          health_status="$(curl --fail --silent --show-error \
+            --output /dev/null --write-out '%{http_code}' \
+            https://aslan.archnet.lol/health/solux)"
+          test "$health_status" = 204
+          expected_asset="$(tar -tzf "$PAYLOAD" \
+            | sed -n 's#^\./\(assets/index-[^/]*\.js\)$#\1#p' \
+            | head -n 1)"
+          test -n "$expected_asset"
+          served_index="$(curl --fail --silent --show-error \
+            https://aslan.archnet.lol/solux/index.html)"
+          printf '%s' "$served_index" | grep -Fq "/solux/$expected_asset"
+          expected_hash="$(tar -xOzf "$PAYLOAD" "./$expected_asset" \
+            | sha256sum | awk '{print $1}')"
+          served_hash="$(curl --fail --silent --show-error \
+            "https://aslan.archnet.lol/solux/$expected_asset" \
+            | sha256sum | awk '{print $1}')"
+          test "$served_hash" = "$expected_hash"

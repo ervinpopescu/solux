@@ -375,6 +375,36 @@ describe('scripts/deploy', () => {
 
       expect(fs.readFileSync(indexPath, 'utf-8')).toBe(originalContent);
     });
+
+    it('rejects target and destination symlinks before any copy', () => {
+      createCompleteFakeDist(fakeDist);
+      const outside = path.join(tmpBase, 'outside');
+      fs.mkdirSync(outside);
+      const targetLink = path.join(tmpBase, 'target-link');
+      fs.symlinkSync(outside, targetLink);
+      expect(() => deploy({ distDir: fakeDist, targetDir: targetLink, logger: () => {} })).toThrow(
+        /Target path ancestor|Unsafe existing target path/,
+      );
+      expect(fs.readdirSync(outside)).toHaveLength(0);
+
+      fs.mkdirSync(path.join(fakeTarget, 'assets'), { recursive: true });
+      fs.symlinkSync(path.join(outside, 'outside-index'), path.join(fakeTarget, 'index.html'));
+      expect(() => deploy({ distDir: fakeDist, targetDir: fakeTarget, logger: () => {} })).toThrow(
+        /Unsafe existing target path/,
+      );
+      expect(fs.readdirSync(outside)).toHaveLength(0);
+
+      const hardlinkTarget = path.join(tmpBase, 'hardlink-target');
+      const hardlinkOutside = path.join(outside, 'hardlink-index.html');
+      fs.mkdirSync(path.join(hardlinkTarget, 'assets'), { recursive: true });
+      fs.writeFileSync(hardlinkOutside, 'outside must remain unchanged');
+      fs.linkSync(hardlinkOutside, path.join(hardlinkTarget, 'index.html'));
+      deploy({ distDir: fakeDist, targetDir: hardlinkTarget, logger: () => {} });
+      expect(fs.readFileSync(hardlinkOutside, 'utf8')).toBe('outside must remain unchanged');
+      expect(fs.readFileSync(path.join(hardlinkTarget, 'index.html'), 'utf8')).toBe(
+        '<html><body>Solux</body></html>',
+      );
+    });
   });
 
   describe('parseArgs', () => {

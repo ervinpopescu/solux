@@ -189,12 +189,14 @@ function readLastRun(statePath) {
   }
 }
 
-export function receive({
-  targetDir = '/var/www/solux',
-  stagingRoot = '/var/lib/solux-deploy/staging',
-  statePath = '/var/lib/solux-deploy/state.json',
-} = {}) {
-  const archive = readInput();
+export function receiveArchive(
+  archive,
+  {
+    targetDir = '/var/www/solux',
+    stagingRoot = '/var/lib/solux-deploy/staging',
+    statePath = '/var/lib/solux-deploy/state.json',
+  } = {},
+) {
   fs.mkdirSync(stagingRoot, { recursive: true, mode: 0o700 });
   const stagingDir = fs.mkdtempSync(path.join(stagingRoot, 'run-'));
   try {
@@ -215,6 +217,10 @@ export function receive({
   } finally {
     fs.rmSync(stagingDir, { recursive: true, force: true });
   }
+}
+
+export function receive(options = {}) {
+  return receiveArchive(readInput(), options);
 }
 
 if (
