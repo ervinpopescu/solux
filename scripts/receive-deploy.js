@@ -13,6 +13,7 @@ export const MAX_FILES = 10_000;
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 export const DEPLOY_METADATA = '.solux-deploy.json';
 export const DEPLOY_REPOSITORY = 'ervinpopescu/solux';
+export const DEFAULT_STATE_PATH = '/var/lib/solux-deploy/state/state.json';
 
 function readOctal(header, start, length) {
   const value = header
@@ -194,7 +195,7 @@ export function receiveArchive(
   {
     targetDir = '/var/www/solux',
     stagingRoot = '/var/lib/solux-deploy/staging',
-    statePath = '/var/lib/solux-deploy/state.json',
+    statePath = DEFAULT_STATE_PATH,
   } = {},
 ) {
   fs.mkdirSync(stagingRoot, { recursive: true, mode: 0o700 });

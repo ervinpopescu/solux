@@ -128,7 +128,9 @@ describe('scripts/receive-deploy archive boundary', () => {
     });
     const targetDir = path.join(tmpDir, 'target');
     const stagingRoot = path.join(tmpDir, 'staging');
-    const statePath = path.join(tmpDir, 'state.json');
+    const stateDir = path.join(tmpDir, 'state-dir');
+    fs.mkdirSync(stateDir, { mode: 0o700 });
+    const statePath = path.join(stateDir, 'state.json');
     receiveArchive(fs.readFileSync(payload), { targetDir, stagingRoot, statePath });
     expect(fs.readFileSync(path.join(targetDir, 'assets', 'index-hash.js'), 'utf8')).toBe('bundle');
     expect(JSON.parse(fs.readFileSync(statePath, 'utf8')).runId).toBe(101);

@@ -13,8 +13,9 @@ The receiver is installed outside the checkout at `/usr/local/libexec/`:
 
 - `receive-deploy.js` and `deploy.js` are root-owned mode `0755`; the account cannot
   modify either file. The forced key runs only `/usr/bin/flock` and the receiver.
-- `/var/lib/solux-deploy/staging`, `state.json`, and `lock` are mode `0700`/`0600`,
-  owned by `solux-deploy`, and outside the webroot.
+- `/var/lib/solux-deploy/staging` and `/var/lib/solux-deploy/state` are mode `0700`;
+  `state/state.json` and `lock` are mode `0600`, owned by `solux-deploy`, and outside
+  the webroot.
 - `solux-deploy` has no password, no useful interactive shell, no writable home or
   receiver files, no sudoers entry, and one authorized key with forced command,
   `no-port-forwarding`, `no-agent-forwarding`, `no-X11-forwarding`, `no-pty`, and
